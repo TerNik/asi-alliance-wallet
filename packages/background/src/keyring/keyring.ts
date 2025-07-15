@@ -1,8 +1,7 @@
-import { Crypto, KeyStore } from "./crypto";
+import { Crypto } from "./crypto";
+import { KeyStore } from "./types";
 // import { App, AppCoinType } from "@keplr-wallet/ledger-cosmos";
 import {
-  KeyCurve,
-  KeyCurves,
   Hash,
   Mnemonic,
   PrivKeySecp256k1,
@@ -16,6 +15,7 @@ import {
   CommonCrypto,
   ExportKeyRingData,
   SignMode,
+  SupportedCurve,
 } from "./types";
 import { ChainInfo, EthSignType } from "@keplr-wallet/types";
 import { Env, WEBPAGE_PORT } from "@keplr-wallet/router";
@@ -32,6 +32,49 @@ import { KeystoneService } from "../keystone";
 import { publicKeyConvert } from "secp256k1";
 import { KeystoneKeyringData } from "../keystone/cosmos-keyring";
 import { InteractionService } from "../interaction";
+// import { CardanoKeyAgent, CardanoNetwork } from "@keplr-wallet/cardano";
+
+// Cardano key store type
+export interface CardanoKeyStore {
+  type: "cardano";
+  version: string;
+  meta: Record<string, string>;
+  address: string; // bech32
+  pubKey: string; // hex
+  encryptedRootPrivateKey: string; // hex
+}
+
+import { InMemoryKeyAgent } from '@cardano-sdk/key-management';
+import { SodiumBip32Ed25519 } from '@cardano-sdk/crypto';
+import { Cardano } from '@cardano-sdk/core';
+
+/**
+ * Get Cardano address and public key from Lace (CIP1852, BIP32-Ed25519)
+ */
+async function getCardanoAddressAndPubKeyFromMnemonicLaceStyle(
+  mnemonic: string,
+  accountIndex = 0,
+  networkChainId: Cardano.ChainId = Cardano.ChainIds.Mainnet
+): Promise<{ address: string; pubKey: Uint8Array }> {
+  const mnemonicWords = mnemonic.trim().split(/\s+/);
+  const bip32Ed25519 = await SodiumBip32Ed25519.create();
+  const keyAgent = await InMemoryKeyAgent.fromBip39MnemonicWords(
+    {
+      mnemonicWords,
+      accountIndex,
+      purpose: 1852,
+      chainId: networkChainId,
+      getPassphrase: async () => Buffer.from('')
+    },
+    {
+      bip32Ed25519,
+      logger: console
+    }
+  );
+  const addrObj = await keyAgent.deriveAddress({ index: 0, type: 0 }, 0);
+  // pubKey: Buffer (hex) from grouped address
+  return { address: addrObj.address, pubKey: Buffer.from(addrObj.rewardAccount?.toString() || '', 'hex') };
+}
 
 export enum KeyRingStatus {
   NOTLOADED,
@@ -61,6 +104,9 @@ export type MultiKeyStoreInfoWithSelected = MultiKeyStoreInfoWithSelectedElem[];
 const KeyStoreKey = "key-store";
 const KeyMultiStoreKey = "key-multi-store";
 const ErrUndefinedLedgerKeeper = new Error("Ledger keeper is not defined");
+
+export const CARDANO_PURPOSE = 1852;
+export const CARDANO_COIN_TYPE = 1815;
 
 /*
  Keyring stores keys in persistent backround.
@@ -103,7 +149,7 @@ export class KeyRing {
   public static getTypeOfKeyStore(
     keyStore: Omit<KeyStore, "crypto">
   ): "mnemonic" | "privateKey" | "ledger" | "keystone" {
-    const type = keyStore.type;
+    const type = keyStore['type'];
     if (type == null) {
       return "mnemonic";
     }
@@ -133,7 +179,7 @@ export class KeyRing {
     }
   }
 
-  public get curve(): KeyCurve {
+  public get curve(): string {
     const curve = this.keyStore?.curve;
     if (curve === undefined) {
       throw new Error("Unable to lookup curve");
@@ -156,10 +202,7 @@ export class KeyRing {
 
   private set privateKey(privateKey: Uint8Array | undefined) {
     this._privateKey = privateKey;
-    this._mnemonicMasterSeed = undefined;
-    this._ledgerPublicKeyCache = undefined;
-    this._keystonePublicKeyCache = undefined;
-    this.cached = new Map();
+    this.clearCaches();
   }
 
   private get mnemonicMasterSeed(): Uint8Array | undefined {
@@ -168,10 +211,7 @@ export class KeyRing {
 
   private set mnemonicMasterSeed(masterSeed: Uint8Array | undefined) {
     this._mnemonicMasterSeed = masterSeed;
-    this._privateKey = undefined;
-    this._ledgerPublicKeyCache = undefined;
-    this._keystonePublicKeyCache = undefined;
-    this.cached = new Map();
+    this.clearCaches();
   }
 
   private get keystonePublicKey(): KeystoneKeyringData | undefined {
@@ -180,10 +220,7 @@ export class KeyRing {
 
   private set keystonePublicKey(publicKey: KeystoneKeyringData | undefined) {
     this._keystonePublicKeyCache = publicKey;
-    this._mnemonicMasterSeed = undefined;
-    this._privateKey = undefined;
-    this._ledgerPublicKeyCache = undefined;
-    this.cached = new Map();
+    this.clearCaches();
   }
 
   private get ledgerPublicKeyCache():
@@ -195,10 +232,8 @@ export class KeyRing {
   private set ledgerPublicKeyCache(
     publicKeys: Record<string, Uint8Array | undefined> | undefined
   ) {
-    this._mnemonicMasterSeed = undefined;
-    this._privateKey = undefined;
     this._ledgerPublicKeyCache = publicKeys;
-    this.cached = new Map();
+    this.clearCaches();
   }
 
   public get status(): KeyRingStatus {
@@ -234,6 +269,21 @@ export class KeyRing {
     defaultCoinType: number,
     useEthereumAddress: boolean
   ): Key {
+    if (
+      this.keyStore &&
+      this.keyStore.curve === 'secp256k1' &&
+      this.keyStore.meta &&
+      this.keyStore.meta["cardano"] === "true"
+    ) {
+      // Cardano key
+      return {
+        algo: "ed25519",
+        pubKey: Buffer.from(this.keyStore.meta["pubKey"], "hex"),
+        address: Buffer.from(this.keyStore.meta["address"], "utf8"),
+        isKeystone: false,
+        isNanoLedger: false
+      };
+    }
     return this.loadKey(
       this.computeKeyStoreCoinType(chainId, defaultCoinType),
       useEthereumAddress
@@ -283,7 +333,7 @@ export class KeyRing {
     password: string,
     meta: Record<string, string>,
     bip44HDPath: BIP44HDPath,
-    curve: KeyCurve
+    curve: SupportedCurve
   ): Promise<{
     status: KeyRingStatus;
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
@@ -323,7 +373,7 @@ export class KeyRing {
     privateKey: Uint8Array,
     password: string,
     meta: Record<string, string>,
-    curve: KeyCurve
+    curve: SupportedCurve
   ): Promise<{
     status: KeyRingStatus;
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
@@ -469,13 +519,8 @@ export class KeyRing {
     if (this.status !== KeyRingStatus.UNLOCKED) {
       throw new Error("Key ring is not unlocked");
     }
-
-    this.mnemonicMasterSeed = undefined;
-    this.privateKey = undefined;
-    this.ledgerPublicKeyCache = undefined;
-    this.keystonePublicKey = undefined;
+    this.clearCaches();
     this.password = "";
-
     this.interactionService.dispatchEvent(WEBPAGE_PORT, "status-changed", {});
   }
 
@@ -626,7 +671,7 @@ export class KeyRing {
     }
 
     return (
-      this.keyStore.coinTypeForChain &&
+      !!this.keyStore.coinTypeForChain &&
       this.keyStore.coinTypeForChain[
         ChainIdHelper.parse(chainId).identifier
       ] !== undefined
@@ -673,15 +718,19 @@ export class KeyRing {
     const identifier = ChainIdHelper.parse(chainId).identifier;
 
     if (this.keyStore) {
-      const coinTypeForChain = this.keyStore.coinTypeForChain ?? {};
-      delete coinTypeForChain[identifier];
-      this.keyStore.coinTypeForChain = coinTypeForChain;
+      const coinTypeForChain = this.keyStore.coinTypeForChain;
+      if (coinTypeForChain) {
+        delete coinTypeForChain[identifier];
+        this.keyStore.coinTypeForChain = coinTypeForChain;
+      }
     }
 
     for (const keyStore of this.multiKeyStore) {
-      const coinTypeForChain = keyStore.coinTypeForChain ?? {};
-      delete coinTypeForChain[identifier];
-      keyStore.coinTypeForChain = coinTypeForChain;
+      const coinTypeForChain = keyStore.coinTypeForChain;
+      if (coinTypeForChain) {
+        delete coinTypeForChain[identifier];
+        keyStore.coinTypeForChain = coinTypeForChain;
+      }
     }
 
     this.save();
@@ -810,7 +859,7 @@ export class KeyRing {
 
       // TODO: support bls12381 (?)
       return {
-        algo: KeyCurves.secp256k1,
+        algo: 'secp256k1',
         pubKey: pubKey.toBytes(),
         address: pubKey.getAddress(),
         isKeystone: false,
@@ -885,6 +934,10 @@ export class KeyRing {
     const bip44HDPath = KeyRing.getKeyStoreBIP44Path(this.keyStore);
 
     if (this.type === "mnemonic") {
+      const isCardano = coinType === CARDANO_COIN_TYPE;
+      if (isCardano) {
+        throw new Error("Cardano address derivation now handled via async getKeys, not loadPrivKey");
+      }
       const path = `m/44'/${coinType}'/${bip44HDPath.account}'/${bip44HDPath.change}/${bip44HDPath.addressIndex}`;
       const cachedKey = this.cached.get(path);
       if (cachedKey) {
@@ -905,7 +958,7 @@ export class KeyRing {
 
       this.cached.set(path, privKey);
       switch (this.keyStore.curve) {
-        case KeyCurves.secp256k1:
+        case 'secp256k1':
           return new PrivKeySecp256k1(privKey);
         default:
           throw new Error(`Unexpected key curve: "${this.keyStore.curve}"`);
@@ -920,7 +973,7 @@ export class KeyRing {
       }
 
       switch (this.keyStore.curve) {
-        case KeyCurves.secp256k1:
+        case 'secp256k1':
           return new PrivKeySecp256k1(this.privateKey);
         default:
           throw new Error(`Unexpected key curve: "${this.keyStore.curve}"`);
@@ -1053,7 +1106,6 @@ export class KeyRing {
       return this.keystoneService.signEthereum(
         env,
         coinType,
-        chainId,
         KeyRing.getKeyStoreBIP44Path(this.keyStore),
         this.loadKey(coinType, true),
         this.keystonePublicKey as KeystoneKeyringData,
@@ -1151,7 +1203,7 @@ export class KeyRing {
     mnemonic: string,
     meta: Record<string, string>,
     bip44HDPath: BIP44HDPath,
-    curve: KeyCurve = KeyCurves.secp256k1
+    curve: SupportedCurve = 'secp256k1'
   ): Promise<{
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
@@ -1180,7 +1232,7 @@ export class KeyRing {
     kdf: "scrypt" | "sha256" | "pbkdf2",
     privateKey: Uint8Array,
     meta: Record<string, string>,
-    curve: KeyCurve = KeyCurves.secp256k1
+    curve: SupportedCurve = 'secp256k1'
   ): Promise<{
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
@@ -1320,7 +1372,7 @@ export class KeyRing {
         type: keyStore.type,
         curve: keyStore.curve,
         meta: keyStore.meta,
-        coinTypeForChain: keyStore.coinTypeForChain,
+        ...(keyStore.coinTypeForChain !== undefined ? { coinTypeForChain: keyStore.coinTypeForChain } : {}),
         bip44HDPath: keyStore.bip44HDPath,
         selected: this.keyStore
           ? KeyRing.getKeyStoreId(keyStore) ===
@@ -1406,7 +1458,7 @@ export class KeyRing {
     password: string,
     meta: Record<string, string>,
     bip44HDPath: BIP44HDPath,
-    curve: KeyCurve = KeyCurves.secp256k1
+    curve: SupportedCurve = 'secp256k1'
   ): Promise<KeyStore> {
     return await Crypto.encrypt(
       crypto,
@@ -1426,7 +1478,7 @@ export class KeyRing {
     privateKey: Uint8Array,
     password: string,
     meta: Record<string, string>,
-    curve: KeyCurve = KeyCurves.secp256k1
+    curve: SupportedCurve = 'secp256k1'
   ): Promise<KeyStore> {
     return await Crypto.encrypt(
       crypto,
@@ -1451,7 +1503,7 @@ export class KeyRing {
       crypto,
       kdf,
       "keystone",
-      KeyCurves.secp256k1,
+      'secp256k1',
       JSON.stringify(publicKey),
       password,
       meta,
@@ -1478,7 +1530,7 @@ export class KeyRing {
       crypto,
       kdf,
       "ledger",
-      KeyCurves.secp256k1,
+      'secp256k1',
       JSON.stringify(publicKeyMap),
       password,
       meta,
@@ -1671,6 +1723,42 @@ export class KeyRing {
     }
 
     for (const keyStore of this.multiKeyStore) {
+      // Cardano-аккаунт: временно отключено
+      /*
+      if (
+        keyStore.curve === 'ed25519' &&
+        keyStore.meta &&
+        keyStore.meta["cardano"] === "true" &&
+        keyStore.meta["cardanoSerializedAgent"]
+      ) {
+        // Восстановить CardanoKeyAgent из сериализованных данных
+        const serialized = JSON.parse(keyStore.meta["cardanoSerializedAgent"]);
+        const agent = await CardanoKeyAgent.fromSerialized(
+          serialized,
+          this.crypto,
+          this.password
+        );
+        // Получить первый внешний адрес
+        let addressBuf = Buffer.alloc(0);
+        try {
+          const derived = await agent.deriveAddress({ type: 'external', index: 0 });
+          if (derived && derived.address) {
+            addressBuf = Buffer.from(derived.address, 'utf8');
+          }
+        } catch (e) {
+          // fallback: пустой адрес
+        }
+        keys.push({
+          name: keyStore.meta["name"] || "Cardano Account",
+          algo: "ed25519",
+          pubKey: agent.getPublicKey() ? Buffer.from(agent.getPublicKey(), "hex") : Buffer.alloc(0),
+          address: addressBuf,
+          isKeystone: false,
+          isNanoLedger: false
+        });
+        continue;
+      }
+      */
       // const type = keyStore.type ?? "mnemonic";
       const defaultCoinType = useEthereumAddress ? 60 : 118;
       const coinType = keyStore.coinTypeForChain
@@ -1684,6 +1772,20 @@ export class KeyRing {
             await Crypto.decrypt(this.crypto, keyStore, this.password)
           ).toString();
 
+          const isCardano = coinType === CARDANO_COIN_TYPE;
+          if (isCardano) {
+            const networkChainId = (Cardano.ChainIds as any)[chainId] || Cardano.ChainIds.Mainnet;
+            const { address, pubKey } = await getCardanoAddressAndPubKeyFromMnemonicLaceStyle(mnemonic, 0, networkChainId);
+            keys.push({
+              name: keyStore.meta ? keyStore.meta["name"] : "Unnamed Account",
+              algo: "ed25519",
+              pubKey,
+              address: Buffer.from(address, "utf8"),
+              isNanoLedger: false,
+              isKeystone: false,
+            });
+            break;
+          }
           const path = `m/44'/${coinType}'/${keyStore.bip44HDPath?.account}'/${keyStore.bip44HDPath?.change}/${keyStore.bip44HDPath?.addressIndex}`;
           const mnemonicMasterSeed =
             Mnemonic.generateMasterSeedFromMnemonic(mnemonic);
@@ -1694,7 +1796,7 @@ export class KeyRing {
           let privKey;
 
           switch (keyStore.curve) {
-            case KeyCurves.secp256k1:
+            case 'secp256k1':
               privKey = new PrivKeySecp256k1(_privKey);
               break;
             default:
@@ -1734,7 +1836,7 @@ export class KeyRing {
             "hex"
           );
           switch (keyStore.curve) {
-            case KeyCurves.secp256k1:
+            case 'secp256k1':
               privKey = new PrivKeySecp256k1(privateKey);
               break;
             default:
@@ -1846,7 +1948,7 @@ export class KeyRing {
 
             keys.push({
               name: keyStore.meta ? keyStore.meta["name"] : "Unnamed Account",
-              algo: KeyCurves.secp256k1,
+              algo: 'secp256k1',
               pubKey: pubKey.toBytes(),
               address: pubKey.getAddress(),
               isKeystone: false,
@@ -1860,5 +1962,71 @@ export class KeyRing {
       }
     }
     return keys;
+  }
+
+  /**
+   * Импорт сид-фразы Cardano, генерация адреса и сохранение в keyring
+   * Временно отключено
+   */
+  /*
+  public async createCardanoMnemonicKey(
+    mnemonic: string[],
+    password: string,
+    meta: Record<string, string> = {},
+    network: string = "mainnet"
+  ): Promise<{
+    status: KeyRingStatus;
+    cardanoKeyStore: KeyStore;
+  }> {
+    if (!mnemonic || (mnemonic.length !== 12 && mnemonic.length !== 24)) {
+      throw new Error("Cardano seed phrase must be 12 or 24 words");
+    }
+    // 1. Инициализация CardanoKeyAgent
+    const agent = await CardanoKeyAgent.fromMnemonic({
+      mnemonic,
+      getPassphrase: async () => Buffer.from(password, 'utf8'),
+      network: network === 'mainnet' ? 'mainnet' : 'testnet',
+      accountIndex: 0
+    });
+    // 2. Сериализация агента для хранения (шифрует rootKey)
+    const serialized = await agent.serialize(this.crypto, password);
+    // 3. Формируем keyStore
+    const cardanoKeyStore: KeyStore = {
+      type: "mnemonic",
+      version: "1.2",
+      meta: {
+        ...meta,
+        cardano: "true",
+        extendedAccountPublicKey: serialized.extendedAccountPublicKey,
+        cardanoSerializedAgent: JSON.stringify(serialized)
+      },
+      bip44HDPath: { account: 0, change: 0, addressIndex: 0 },
+      curve: 'ed25519',
+      coinTypeForChain: { ed25519: 1815 },
+      crypto: {
+        cipher: "aes-128-ctr",
+        cipherparams: { iv: "" },
+        ciphertext: "",
+        kdf: "scrypt",
+        kdfparams: { salt: "", dklen: 32, n: 131072, r: 8, p: 1 },
+        mac: ""
+      }
+    };
+    this.keyStore = cardanoKeyStore;
+    this.multiKeyStore.push(cardanoKeyStore);
+    await this.save();
+    this.interactionService.dispatchEvent(WEBPAGE_PORT, "status-changed", {});
+    return {
+      status: this.status,
+      cardanoKeyStore
+    };
+  }
+  */
+  private clearCaches() {
+    this._privateKey = undefined;
+    this._mnemonicMasterSeed = undefined;
+    this._ledgerPublicKeyCache = undefined;
+    this._keystonePublicKeyCache = undefined;
+    this.cached = new Map();
   }
 }

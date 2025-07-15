@@ -95,6 +95,21 @@ export const WalletOptions = observer(
           }}
           style={{ color: "var(--orange-orange-400, #FA8F6B)" }}
         />
+        <Card
+          heading={"Add Cardano Wallet"}
+          leftImage={require("@assets/svg/wireframe/wallet.svg")}
+          leftImageStyle={{
+            backgroundColor: "transparent",
+            height: "18px",
+            width: "18px",
+          }}
+          onClick={() => {
+            analyticsStore.logEvent("add_cardano_wallet_click", {
+              pageName: "Home",
+            });
+            navigate("/cardano-wallet");
+          }}
+        />
       </div>
     );
   }
