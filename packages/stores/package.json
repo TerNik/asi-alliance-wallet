@@ -19,6 +19,7 @@
     "@keplr-wallet/provider-mock": "0.12.12"
   },
   "dependencies": {
+    "@asi-alliance/cardano": "../cardano",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/address": "^5.7.0",

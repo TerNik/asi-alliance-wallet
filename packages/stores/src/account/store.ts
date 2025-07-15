@@ -1,4 +1,4 @@
-import { ActivityStore } from "src/activity";
+import { ActivityStore } from "../activity";
 import {
   ChainedFunctionifyTuple,
   ChainGetter,
@@ -8,8 +8,9 @@ import {
 } from "../common";
 import { AccountSetBase, AccountSetBaseSuper, AccountSetOpts } from "./base";
 import { DeepReadonly, UnionToIntersection } from "utility-types";
-import { TokenGraphStore } from "src/token-graph";
+import { TokenGraphStore } from "../token-graph";
 import { KVStore } from "@keplr-wallet/common";
+import { CardanoKeyRing } from "@keplr-wallet/cardano";
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export interface IAccountStore<T extends IObject = {}> {

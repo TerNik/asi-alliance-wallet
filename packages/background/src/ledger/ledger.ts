@@ -20,6 +20,7 @@ import {
   ErrModuleLedgerSign,
 } from "./types";
 import { WalletError } from "@keplr-wallet/router";
+import { CARDANO_COIN_TYPE, CARDANO_PURPOSE } from "../keyring/keyring";
 
 export enum LedgerApp {
   Cosmos = "cosmos",
@@ -308,6 +309,15 @@ export class Ledger {
   }
 
   static createPath(coinType: number, fields: BIP44HDPath) {
+    if (coinType === CARDANO_COIN_TYPE) {
+      return [
+        CARDANO_PURPOSE,
+        CARDANO_COIN_TYPE,
+        fields.account,
+        fields.change,
+        fields.addressIndex,
+      ];
+    }
     return [44, coinType, fields.account, fields.change, fields.addressIndex];
   }
 

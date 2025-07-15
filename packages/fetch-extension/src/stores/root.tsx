@@ -47,6 +47,7 @@ import {
   ActivityStore,
   TokenGraphStore,
 } from "@keplr-wallet/stores";
+import { CardanoAccount } from "@keplr-wallet/stores/build/account/cardano";
 import {
   KeplrETCQueries,
   GravityBridgeCurrencyRegsitrar,
@@ -104,7 +105,7 @@ export class RootStore {
     ]
   >;
   public readonly accountStore: AccountStore<
-    [CosmosAccount, CosmwasmAccount, SecretAccount, EthereumAccount]
+    [CosmosAccount, CosmwasmAccount, SecretAccount, EthereumAccount, CardanoAccount]
   >;
   public readonly priceStore: CoinGeckoPriceStore;
   public readonly tokensStore: TokensStore<ChainInfoWithCoreTypes>;
@@ -388,7 +389,8 @@ export class RootStore {
       }),
       EthereumAccount.use({
         queriesStore: this.queriesStore,
-      })
+      }),
+      CardanoAccount.use()
     );
 
     if (!window.location.href.includes("#/unlock")) {
