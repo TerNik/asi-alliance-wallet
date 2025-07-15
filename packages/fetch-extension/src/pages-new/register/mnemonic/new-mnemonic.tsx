@@ -501,7 +501,7 @@ export const VerifyMnemonicModePage: FunctionComponent<{
       setRandomizedWords(words);
     }, [newMnemonicConfig.mnemonic]);
 
-    const { analyticsStore } = useStore();
+    const { analyticsStore, chainStore, accountStore } = useStore();
 
     const handleClickFirstButton = (word: string, index: number) => {
       if (!clickedButtons.includes(index)) {
@@ -621,12 +621,23 @@ export const VerifyMnemonicModePage: FunctionComponent<{
           onClick={async (e: any) => {
             e.preventDefault();
             try {
-              await registerConfig.createMnemonic(
-                newMnemonicConfig.name,
-                newMnemonicConfig.mnemonic,
-                newMnemonicConfig.password,
-                bip44Option.bip44HDPath
-              );
+              if (registerConfig.mode === "add") {
+                await registerConfig.createMnemonic(
+                  newMnemonicConfig.name,
+                  newMnemonicConfig.mnemonic,
+                  newMnemonicConfig.password,
+                  bip44Option.bip44HDPath
+                );
+              } else {
+                await registerConfig.createMnemonic(
+                  newMnemonicConfig.name,
+                  newMnemonicConfig.mnemonic,
+                  newMnemonicConfig.password,
+                  bip44Option.bip44HDPath,
+                  chainStore.chainInfos,
+                  accountStore
+                );
+              }
               analyticsStore.setUserProperties({
                 registerType: "seed",
                 accountType: "mnemonic",

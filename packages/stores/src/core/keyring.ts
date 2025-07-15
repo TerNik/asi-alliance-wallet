@@ -32,7 +32,6 @@ import { computed, flow, makeObservable, observable, runInAction } from "mobx";
 import { InteractionStore } from "./interaction";
 import { ChainGetter } from "../common";
 import { BIP44 } from "@keplr-wallet/types";
-import { DeepReadonly } from "utility-types";
 import { toGenerator } from "@keplr-wallet/common";
 
 export class KeyRingSelectablesStore {
@@ -71,12 +70,10 @@ export class KeyRingSelectablesStore {
     return !this.isInitializing && !this._isKeyStoreCoinTypeSet;
   }
 
-  get selectables(): DeepReadonly<
-    {
-      path: BIP44;
-      bech32Address: string;
-    }[]
-  > {
+  get selectables(): {
+    path: BIP44;
+    bech32Address: string;
+  }[] {
     return this._selectables;
   }
 
@@ -196,6 +193,8 @@ export class KeyRingStore {
     password: string,
     meta: Record<string, string>,
     bip44HDPath: BIP44HDPath,
+    chainInfos: any[], // Cardano auto-restore support
+    accountStore: any, // Cardano auto-restore support
     kdf: "scrypt" | "sha256" | "pbkdf2" = this.defaultKdf
   ) {
     const msg = new CreateMnemonicKeyMsg(
@@ -210,6 +209,22 @@ export class KeyRingStore {
     );
     this.status = result.status;
     this.multiKeyStoreInfo = result.multiKeyStoreInfo;
+
+    // Cardano auto-restore
+    try {
+      const cardanoChainIds = chainInfos
+        .filter((c: any) => c.features?.includes("cardano"))
+        .map((c: any) => c.chainId);
+      for (const chainId of cardanoChainIds) {
+        const account = accountStore.getAccount?.(chainId);
+        if (account && account.cardano && typeof account.cardano.restoreWallet === "function") {
+          yield account.cardano.restoreWallet(mnemonic.split(" "));
+        }
+      }
+    } catch (e) {
+      // Not critical, if Cardano is not created
+      console.warn("Cardano auto-restore failed", e);
+    }
 
     this.dispatchWalletStatusChangeEvent();
   }
