@@ -6243,7 +6243,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@keplr-wallet/background@0.12.12, @keplr-wallet/background@workspace:packages/background":
+"@keplr-wallet/background@*, @keplr-wallet/background@0.12.12, @keplr-wallet/background@workspace:packages/background":
   version: 0.0.0-use.local
   resolution: "@keplr-wallet/background@workspace:packages/background"
   dependencies:
@@ -6258,7 +6258,6 @@ __metadata:
     "@ethersproject/transactions": ^5.7.0
     "@ethersproject/wallet": ^5.7.0
     "@fetchai/wallet-types": ^0.2.0
-    "@keplr-wallet/cardano": 0.12.12
     "@keplr-wallet/chain-validator": 0.12.12
     "@keplr-wallet/common": 0.12.12
     "@keplr-wallet/cosmos": 0.12.12
@@ -6312,12 +6311,11 @@ __metadata:
   resolution: "@keplr-wallet/cardano@workspace:packages/cardano"
   dependencies:
     "@emurgo/cardano-serialization-lib-browser": ^14.1.2
+    "@keplr-wallet/background": "*"
+    "@keplr-wallet/common": "*"
     bip39: ^3.1.0
     buffer: ^6.0.3
     typescript: ^4.9.5
-  peerDependencies:
-    "@keplr-wallet/background": "*"
-    "@keplr-wallet/common": "*"
   languageName: unknown
   linkType: soft
 
@@ -6333,7 +6331,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@keplr-wallet/common@0.12.12, @keplr-wallet/common@workspace:packages/common":
+"@keplr-wallet/common@*, @keplr-wallet/common@0.12.12, @keplr-wallet/common@workspace:packages/common":
   version: 0.0.0-use.local
   resolution: "@keplr-wallet/common@workspace:packages/common"
   dependencies:
@@ -6692,6 +6690,7 @@ __metadata:
     "@ethersproject/bignumber": ^5.7.0
     "@ethersproject/providers": ^5.7.2
     "@keplr-wallet/background": 0.12.12
+    "@keplr-wallet/cardano": 0.12.12
     "@keplr-wallet/common": 0.12.12
     "@keplr-wallet/cosmos": 0.12.12
     "@keplr-wallet/crypto": 0.12.12

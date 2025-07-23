@@ -14,14 +14,12 @@
   },
   "dependencies": {
     "@emurgo/cardano-serialization-lib-browser": "^14.1.2",
+    "@keplr-wallet/background": "*",
+    "@keplr-wallet/common": "*",
     "bip39": "^3.1.0",
     "buffer": "^6.0.3"
   },
   "devDependencies": {
     "typescript": "^4.9.5"
-  },
-  "peerDependencies": {
-    "@keplr-wallet/background": "*",
-    "@keplr-wallet/common": "*"
   }
 }

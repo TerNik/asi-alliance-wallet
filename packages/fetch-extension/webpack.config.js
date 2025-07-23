@@ -7,7 +7,7 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const BundleAnalyzerPlugin =
   require("webpack-bundle-analyzer").BundleAnalyzerPlugin;
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
-const { NormalModuleReplacementPlugin } = require('webpack');
+const { NormalModuleReplacementPlugin } = require("webpack");
 
 const fs = require("fs");
 
@@ -50,7 +50,7 @@ const commonResolve = () => ({
     "@hooks": path.resolve(__dirname, "src/hooks"),
     "@assets": path.resolve(__dirname, "src/public/assets"),
     "@utils": path.resolve(__dirname, "src/utils"),
-    "crypto": require.resolve("crypto-browserify"),
+    crypto: require.resolve("crypto-browserify"),
   },
 });
 const altResolve = () => {
@@ -121,7 +121,7 @@ const extensionConfig = () => {
     name: "extension",
     mode: isEnvDevelopment ? "development" : "production",
     // In development environment, turn on source map.
-    devtool: 'source-map',
+    devtool: "source-map",
     // In development environment, webpack watch the file changes, and recompile
     watch: isEnvDevelopment,
     entry: {
@@ -198,7 +198,7 @@ const extensionConfig = () => {
       alias: {
         ...commonResolve().alias,
         ...altResolve().alias,
-        "crypto": require.resolve("crypto-browserify"),
+        crypto: require.resolve("crypto-browserify"),
       },
       fallback: {
         os: require.resolve("os-browserify/browser"),
@@ -223,7 +223,7 @@ const extensionConfig = () => {
         fileRule,
         {
           test: /\.wasm$/,
-          type: 'asset/resource',
+          type: "asset/resource",
         },
         {
           test: /\.m?js/,
@@ -238,8 +238,23 @@ const extensionConfig = () => {
         },
       ],
     },
+    experiments: {
+      syncWebAssembly: true,
+    },
     plugins: [
       new NodePolyfillPlugin(),
+      new NormalModuleReplacementPlugin(
+        /@dcspark\/cardano-multiplatform-lib-nodejs/,
+        '@dcspark/cardano-multiplatform-lib-browser'
+      ),
+      new NormalModuleReplacementPlugin(
+        /@emurgo\/cardano-serialization-lib-nodejs/,
+        "@emurgo/cardano-serialization-lib-browser"
+      ),
+      new NormalModuleReplacementPlugin(
+        /@emurgo\/cardano-message-signing-nodejs/,
+        "@emurgo/cardano-message-signing-asmjs"
+      ),
       new webpack.ProvidePlugin({
         process: "process/browser",
         Buffer: ["buffer", "Buffer"],
@@ -248,7 +263,7 @@ const extensionConfig = () => {
       new ForkTsCheckerWebpackPlugin(),
       new CopyWebpackPlugin({
         patterns: [
-          { from: 'src/public/assets', to: 'assets' },
+          { from: "src/public/assets", to: "assets" },
           ...(() => {
             if (isBuildManifestV2) {
               return [
@@ -270,7 +285,6 @@ const extensionConfig = () => {
             from: "../../node_modules/webextension-polyfill/dist/browser-polyfill.js",
             to: "./",
           },
-
         ],
       }),
       new HtmlWebpackPlugin({
@@ -321,9 +335,7 @@ const extensionConfig = () => {
       new BundleAnalyzerPlugin({
         analyzerMode: isEnvAnalyzer ? "server" : "disabled",
       }),
-
     ],
-
   };
 };
 
