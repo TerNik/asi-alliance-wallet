@@ -19,6 +19,7 @@
     "@keplr-wallet/provider-mock": "0.12.12"
   },
   "dependencies": {
+    "@emurgo/cardano-serialization-lib-browser": "^15.0.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/address": "^5.7.0",

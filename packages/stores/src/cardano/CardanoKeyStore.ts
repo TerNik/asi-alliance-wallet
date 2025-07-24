@@ -1,14 +1,7 @@
 import * as bip39 from "bip39";
-import {
-  Bip32PrivateKey,
-  Ed25519KeyHash,
-  BaseAddress,
-  Credential,
-  HARDENED
-} from "@emurgo/cardano-serialization-lib-browser";
-import { CardanoNetwork } from '@keplr-wallet/cardano';
+import { CardanoNetwork } from "@keplr-wallet/cardano";
 
-
+const HARDENED = 0x80000000;
 
 export class CardanoKeyStore {
   private mnemonic: string[] | null = null;
@@ -33,24 +26,42 @@ export class CardanoKeyStore {
     if (!this.mnemonic) {
       throw new Error("Mnemonic not set");
     }
+
     const entropy = bip39.mnemonicToEntropy(this.mnemonic.join(" "));
+
+    const {
+      Bip32PrivateKey,
+      Ed25519KeyHash,
+      BaseAddress,
+      Credential,
+    } = await import("@emurgo/cardano-serialization-lib-browser");
+
     const rootKey = Bip32PrivateKey.from_bip39_entropy(
       Buffer.from(entropy, "hex"),
       Buffer.from("")
     );
+
     const accountKey = rootKey
       .derive(HARDENED + 1852)
       .derive(HARDENED + 1815)
       .derive(HARDENED + 0);
+
     const paymentKey = accountKey.derive(0).derive(0).to_public();
     const stakeKey = accountKey.derive(2).derive(0).to_public();
-    const paymentKeyHash = Ed25519KeyHash.from_bytes(paymentKey.to_raw_key().hash().to_bytes());
-    const stakeKeyHash = Ed25519KeyHash.from_bytes(stakeKey.to_raw_key().hash().to_bytes());
+
+    const paymentKeyHash = Ed25519KeyHash.from_bytes(
+      paymentKey.to_raw_key().hash().to_bytes()
+    );
+    const stakeKeyHash = Ed25519KeyHash.from_bytes(
+      stakeKey.to_raw_key().hash().to_bytes()
+    );
+
     const baseAddr = BaseAddress.new(
       network === "mainnet" ? 1 : 0,
-      Credential.new(paymentKeyHash, 0),
-      Credential.new(stakeKeyHash, 0)
+      Credential.from_keyhash(paymentKeyHash),
+      Credential.from_keyhash(stakeKeyHash)
     );
+
     this.address = baseAddr.to_address().to_bech32();
     return this.address;
   }
@@ -62,4 +73,4 @@ export class CardanoKeyStore {
   getAddress(): string {
     return this.address;
   }
-} 
+}

@@ -223,7 +223,7 @@ const extensionConfig = () => {
         fileRule,
         {
           test: /\.wasm$/,
-          type: "asset/resource",
+          type: "webassembly/async",
         },
         {
           test: /\.m?js/,
@@ -240,12 +240,14 @@ const extensionConfig = () => {
     },
     experiments: {
       syncWebAssembly: true,
+      topLevelAwait: true,
+      asyncWebAssembly: true,
     },
     plugins: [
       new NodePolyfillPlugin(),
       new NormalModuleReplacementPlugin(
         /@dcspark\/cardano-multiplatform-lib-nodejs/,
-        '@dcspark/cardano-multiplatform-lib-browser'
+        "@dcspark/cardano-multiplatform-lib-browser"
       ),
       new NormalModuleReplacementPlugin(
         /@emurgo\/cardano-serialization-lib-nodejs/,

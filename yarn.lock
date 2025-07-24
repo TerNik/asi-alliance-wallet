@@ -3311,6 +3311,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@dcspark/cardano-multiplatform-lib-browser@npm:^6.2.0":
+  version: 6.2.0
+  resolution: "@dcspark/cardano-multiplatform-lib-browser@npm:6.2.0"
+  checksum: 35a26e66a77a2d279007148659d75e8397f685962476af9ce2cfbcbfea5148edad49da82d969fda7fac156f204d02993241c97ce9fc20e826f363e324a8e91e1
+  languageName: node
+  linkType: hard
+
 "@discoveryjs/json-ext@npm:0.5.7, @discoveryjs/json-ext@npm:^0.5.0, @discoveryjs/json-ext@npm:^0.5.3":
   version: 0.5.7
   resolution: "@discoveryjs/json-ext@npm:0.5.7"
@@ -3407,6 +3414,13 @@ __metadata:
   version: 14.1.2
   resolution: "@emurgo/cardano-serialization-lib-browser@npm:14.1.2"
   checksum: bad93f8b5f16ba313509cf7d9c5f6967c6495b06eff79bcc012fc7eaee62f06d68286cb111be6e6e7b630be3b663b8f682ae4a4c12a536fd89c936c26836eac5
+  languageName: node
+  linkType: hard
+
+"@emurgo/cardano-serialization-lib-browser@npm:^15.0.0":
+  version: 15.0.0
+  resolution: "@emurgo/cardano-serialization-lib-browser@npm:15.0.0"
+  checksum: 8ae0fde0b279203c47add6a108eb99bcdf6818a05ddf5b0ea84ebbe6c6a84bb90ddf088254005e1df9307c75d32eb490b511d00d0aebaf0e61f7556a06072a26
   languageName: node
   linkType: hard
 
@@ -6684,6 +6698,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@keplr-wallet/stores@workspace:packages/stores"
   dependencies:
+    "@emurgo/cardano-serialization-lib-browser": ^15.0.0
     "@ethersproject/abi": ^5.7.0
     "@ethersproject/abstract-provider": ^5.7.0
     "@ethersproject/address": ^5.7.0
@@ -26057,6 +26072,7 @@ __metadata:
     "@cardano-sdk/crypto": ^0.4.2
     "@cardano-sdk/key-management": ^0.29.2
     "@cosmjs/cosmwasm-stargate": ^0.31.0
+    "@dcspark/cardano-multiplatform-lib-browser": ^6.2.0
     "@emurgo/cardano-message-signing-asmjs": 1.0.1
     "@emurgo/cardano-serialization-lib-browser": ^14.1.2
     "@noble/ed25519": ^2.3.0

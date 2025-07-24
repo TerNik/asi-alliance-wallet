@@ -6,8 +6,8 @@ import { wordlist as bip39Wordlist } from "@scure/bip39/wordlists/english";
 export const CreateCardanoWallet: React.FC = observer(() => {
   const { accountStore, chainStore } = useStore();
   // For example: find the first Cardano network
-  const cardanoChain = chainStore.chainInfos.find(
-    (c) => c.features?.includes("cardano")
+  const cardanoChain = chainStore.chainInfos.find((c) =>
+    c.features?.includes("cardano")
   );
   const [mnemonic, setMnemonic] = useState<string[] | null>(null);
   const [address, setAddress] = useState<string | null>(null);
@@ -18,7 +18,8 @@ export const CreateCardanoWallet: React.FC = observer(() => {
     return <div>No Cardano network configured</div>;
   }
 
-  const cardanoAccount = (accountStore.getAccount(cardanoChain.chainId) as any).cardano;
+  const cardanoAccount = (accountStore.getAccount(cardanoChain.chainId) as any)
+    .cardano;
 
   const handleCreate = async () => {
     setError(null);
@@ -43,9 +44,7 @@ export const CreateCardanoWallet: React.FC = observer(() => {
       // Validation: only words from bip39 dictionary
       const invalid = words.filter((w) => !bip39Wordlist.includes(w));
       if (invalid.length > 0) {
-        setError(
-          `Invalid word(s) in seed phrase: ${invalid.join(", ")}`
-        );
+        setError(`Invalid word(s) in seed phrase: ${invalid.join(", ")}`);
         return;
       }
       const { mnemonic, address } = await cardanoAccount.restoreWallet(words);
@@ -75,7 +74,7 @@ export const CreateCardanoWallet: React.FC = observer(() => {
       {error && <div style={{ color: "red" }}>{error}</div>}
       {mnemonic && (
         <div style={{ margin: "16px 0" }}>
-          <b>Seed phrase:</b>
+          <b style={{ color: "white" }}>Seed Phrase</b>
           <div
             style={{
               background: "#f5f5f5",
@@ -91,7 +90,7 @@ export const CreateCardanoWallet: React.FC = observer(() => {
       )}
       {address && (
         <div style={{ margin: "16px 0" }}>
-          <b>Address:</b>
+          <b style={{ color: "white" }}>Address:</b>
           <div
             style={{
               background: "#f5f5f5",
