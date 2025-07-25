@@ -25,6 +25,9 @@
   },
   "dependencies": {
     "@apollo/client": "^3.6.9",
+    "@cardano-sdk/core": "^0.46.4",
+    "@cardano-sdk/crypto": "^0.4.3",
+    "@cardano-sdk/key-management": "^0.29.3",
     "@cosmjs/encoding": "^0.28.13",
     "@ethereumjs/common": "^2.6.5",
     "@ethereumjs/tx": "^3.5.2",

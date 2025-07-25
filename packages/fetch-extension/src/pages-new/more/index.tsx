@@ -254,9 +254,9 @@ export const MorePage: FunctionComponent = () => {
         }}
       />
       <Card
-        leftImageStyle={{ background: "transparent" }}
+        leftImageStyle={{ background: "transparent", transform: "scale(2.2)" }}
         style={{ background: "rgba(255,255,255,0.1)", marginBottom: "6px" }}
-        leftImage={require("@assets/svg/wireframe/wallet.svg")}
+        leftImage={require("@assets/svg/wireframe/wallet-2.svg")}
         heading={"Cardano Wallet"}
         onClick={() => {
           navigate("/cardano-wallet");

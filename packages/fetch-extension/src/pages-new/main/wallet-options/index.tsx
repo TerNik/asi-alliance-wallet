@@ -39,7 +39,22 @@ export const WalletOptions = observer(
             });
           }}
         />
-
+        <Card
+          heading={"Add Cardano Wallet"}
+          leftImage={require("@assets/svg/wireframe/wallet-2.svg")}
+          leftImageStyle={{
+            backgroundColor: "transparent",
+            height: "18px",
+            width: "18px",
+            transform: "scale(2.2)",
+          }}
+          onClick={() => {
+            analyticsStore.logEvent("add_cardano_wallet_click", {
+              pageName: "Home",
+            });
+            navigate("/cardano-wallet");
+          }}
+        />
         <Card
           heading={"Change Wallet"}
           leftImage={require("@assets/svg/wireframe/change.svg")}
@@ -94,21 +109,6 @@ export const WalletOptions = observer(
             fontWeight: 400,
           }}
           style={{ color: "var(--orange-orange-400, #FA8F6B)" }}
-        />
-        <Card
-          heading={"Add Cardano Wallet"}
-          leftImage={require("@assets/svg/wireframe/wallet.svg")}
-          leftImageStyle={{
-            backgroundColor: "transparent",
-            height: "18px",
-            width: "18px",
-          }}
-          onClick={() => {
-            analyticsStore.logEvent("add_cardano_wallet_click", {
-              pageName: "Home",
-            });
-            navigate("/cardano-wallet");
-          }}
         />
       </div>
     );
