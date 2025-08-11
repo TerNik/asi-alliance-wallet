@@ -33,7 +33,8 @@ import { InteractionStore } from "./interaction";
 import { ChainGetter } from "../common";
 import { BIP44 } from "@keplr-wallet/types";
 import { toGenerator } from "@keplr-wallet/common";
-import { CardanoKeyRing } from "@keplr-wallet/cardano";
+// TODO: Import CardanoKeyRing when it's properly exported
+// import { CardanoKeyRing } from "@keplr-wallet/cardano";
 
 export class KeyRingSelectablesStore {
   @observable
@@ -135,8 +136,10 @@ export class KeyRingStore {
   protected keyStoreChangedListeners: (() => void)[] = [];
   protected walletStatusChangedListeners: (() => void)[] = [];
 
-  @observable
-  protected _cardanoKeyRing: CardanoKeyRing | undefined = undefined;
+  // TODO: Restore when CardanoKeyRing is properly exported from @keplr-wallet/cardano
+  // @observable
+  // protected _cardanoKeyRing: CardanoKeyRing | undefined = undefined;
+  protected _cardanoKeyRing: any | undefined = undefined; // Temporary type until CardanoKeyRing is available
 
 
 
@@ -176,12 +179,14 @@ export class KeyRingStore {
 
   get keyRing(): any {
     if ((this.chainGetter as any).hasFeature("cardano")) {
-      return this._cardanoKeyRing;
+      // Return cardano keyring when available
+      return this._cardanoKeyRing || this; // Fallback to this if not initialized
     }
     return this;
   }
 
-  get cardanoKeyRing(): CardanoKeyRing | undefined {
+  // Restore cardanoKeyRing getter with temporary type
+  get cardanoKeyRing(): any | undefined {
     return this._cardanoKeyRing;
   }
 
@@ -212,7 +217,9 @@ export class KeyRingStore {
     if (
       chainInfos.find((info: any) => info.features?.includes("cardano"))
     ) {
-      this._cardanoKeyRing = new CardanoKeyRing();
+      // TODO: Restore when CardanoKeyRing is available from @keplr-wallet/cardano
+      // this._cardanoKeyRing = new CardanoKeyRing();
+      this._cardanoKeyRing = {}; // Placeholder until CardanoKeyRing is available
     }
 
     const msg = new CreateMnemonicKeyMsg(
@@ -398,7 +405,9 @@ export class KeyRingStore {
 
     if (this._status === KeyRingStatus.UNLOCKED && 
         this._multiKeyStoreInfo.find(ks => ks.meta?.['cardano'] === "true")) {
-      this._cardanoKeyRing = new CardanoKeyRing();
+      // TODO: Restore when CardanoKeyRing is available from @keplr-wallet/cardano
+      // this._cardanoKeyRing = new CardanoKeyRing();
+      this._cardanoKeyRing = {}; // Placeholder until CardanoKeyRing is available
     }
 
     // Approve all waiting interaction for the enabling key ring.
@@ -427,7 +436,9 @@ export class KeyRingStore {
     
     if (this._status === KeyRingStatus.UNLOCKED && 
         this._multiKeyStoreInfo.find(ks => ks.meta?.['cardano'] === "true")) {
-      this._cardanoKeyRing = new CardanoKeyRing();
+      // TODO: Restore when CardanoKeyRing is available from @keplr-wallet/cardano
+      // this._cardanoKeyRing = new CardanoKeyRing();
+      this._cardanoKeyRing = {}; // Placeholder until CardanoKeyRing is available
     }
     
     this.dispatchWalletStatusChangeEvent();

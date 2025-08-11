@@ -29,7 +29,12 @@ export interface CardanoAccountMixin {
 
 export const CardanoAccountMixin = {
   use(
-    options?: { mnemonicWords: string[]; accountIndex?: number; network?: 'mainnet' | 'testnet'; blockfrostApiKey?: string }
+    options?: { 
+      mnemonicWords: string[]; 
+      accountIndex?: number; 
+      network?: 'mainnet' | 'testnet'; 
+      blockfrostApiKey?: string;
+    }
   ): (
     _base: AccountSetBaseSuper & CosmosAccount & CosmwasmAccount & SecretAccount & EthereumAccount,
     _chainGetter: ChainGetter,
@@ -40,15 +45,17 @@ export const CardanoAccountMixin = {
     return async (_base, _chainGetter, _chainId, _activityStore, _tokenGraphStore) => {
       let cardanoWalletManager;
       if (options) {
-        const { CardanoWalletManager } = await import("@keplr-wallet/cardano");
-        cardanoWalletManager = await CardanoWalletManager.create({
+        // TODO: Implement proper CardanoWalletManager when it's available
+        // For now, just create a placeholder object
+        cardanoWalletManager = {
           mnemonicWords: options.mnemonicWords,
           accountIndex: options.accountIndex,
           network: options.network || 'mainnet',
-          blockfrostApiKey: options.blockfrostApiKey || '<API_KEY>'
-        });
+          blockfrostApiKey: options.blockfrostApiKey || '<API_KEY>',
+          isInitialized: false
+        };
       }
       return { cardanoWalletManager };
     };
   },
-}; 
+};
