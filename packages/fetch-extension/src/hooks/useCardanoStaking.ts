@@ -81,7 +81,6 @@ export const useCardanoStaking = (
         return BigInt(0);
       }
 
-      const wallet = transactionStore.transactionManager.getWallet();
       // This would typically come from wallet.balance.rewardAccounts$
       // For now, return 0 as a placeholder
       return BigInt(0);
@@ -98,7 +97,6 @@ export const useCardanoStaking = (
         return null;
       }
 
-      const wallet = transactionStore.transactionManager.getWallet();
       // This would typically come from wallet delegation observables
       // For now, return null as a placeholder
       return null;

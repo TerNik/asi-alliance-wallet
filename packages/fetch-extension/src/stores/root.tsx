@@ -49,6 +49,8 @@ import {
 } from "@keplr-wallet/stores";
 
 import { CardanoAccount } from "@keplr-wallet/stores/build/account/cardano";
+// TODO: Import CardanoAccountMixin when cardano package builds successfully
+// import { CardanoAccountMixin } from "@keplr-wallet/stores/build/account/cardano";
 import {
   KeplrETCQueries,
   GravityBridgeCurrencyRegsitrar,
@@ -392,6 +394,13 @@ export class RootStore {
         queriesStore: this.queriesStore,
       }),
       CardanoAccount.use()
+      // TODO: Add CardanoAccountMixin when cardano package builds successfully
+      // CardanoAccountMixin.use({
+      //   mnemonicWords: [], // TODO: Get from keyring
+      //   accountIndex: 0,
+      //   network: 'mainnet',
+      //   blockfrostApiKey: process.env['BLOCKFROST_API_KEY'] || ''
+      // })
     );
 
     if (!window.location.href.includes("#/unlock")) {

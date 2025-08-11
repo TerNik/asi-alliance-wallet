@@ -41,8 +41,8 @@ export const CardanoAccountMixin = {
     _chainId: string,
     _activityStore: ActivityStore,
     _tokenGraphStore: TokenGraphStore
-  ) => Promise<CardanoAccountMixin> {
-    return async (_base, _chainGetter, _chainId, _activityStore, _tokenGraphStore) => {
+  ) => CardanoAccountMixin {
+    return (_base, _chainGetter, _chainId, _activityStore, _tokenGraphStore) => {
       let cardanoWalletManager;
       if (options) {
         // TODO: Implement proper CardanoWalletManager when it's available

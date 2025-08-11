@@ -9,7 +9,7 @@ interface BalanceDisplayProps {
 export const BalanceDisplay: React.FC<BalanceDisplayProps> = observer(({ store }) => {
   const balance = store.state.balance;
   const utxos = store.state.utxos;
-  const adaBalance = store.getBalanceInAda();
+  const adaBalance = store.balanceInAda;
 
   const formatLovelace = (lovelace: bigint): string => {
     return `${Number(lovelace) / 1_000_000} ADA`;
@@ -77,7 +77,7 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = observer(({ store }
                   </div>
                   {utxo.value.assets && utxo.value.assets.size > 0 && (
                     <div className="utxo-assets">
-                      {Array.from(utxo.value.assets.entries()).map(([assetId, amount]) => (
+                      {Array.from(utxo.value.assets.entries()).map(([assetId, amount]: [string, bigint]) => (
                         <div key={assetId} className="utxo-asset">
                           <span className="label">{getAssetName(assetId)}:</span>
                           <span className="value">{formatAssetAmount(amount)}</span>
