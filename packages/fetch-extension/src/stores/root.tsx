@@ -21,6 +21,7 @@ import {
   CosmwasmQueries,
   EvmQueries,
   OsmosisQueries,
+  CardanoQueries,
   DeferInitialQueryController,
   getKeplrFromWindow,
   IBCChannelStore,
@@ -70,6 +71,7 @@ import { FeeType } from "@keplr-wallet/hooks";
 import { AnalyticsStore, NoopAnalyticsClient } from "@keplr-wallet/analytics";
 import { ChainIdHelper } from "@keplr-wallet/cosmos";
 import { ExtensionAnalyticsClient } from "../analytics";
+import { getBlockFrostProjectId } from "@utils/index";
 
 export class RootStore {
   public readonly uiConfigStore: UIConfigStore;
@@ -102,11 +104,18 @@ export class RootStore {
       KeplrETCQueries,
       ICNSQueries,
       FNSQueries,
-      EvmQueries
+      EvmQueries,
+      CardanoQueries
     ]
   >;
   public readonly accountStore: AccountStore<
-    [CosmosAccount, CosmwasmAccount, SecretAccount, EthereumAccount, CardanoAccount]
+    [
+      CosmosAccount,
+      CosmwasmAccount,
+      SecretAccount,
+      EthereumAccount,
+      CardanoAccount
+    ]
   >;
   public readonly priceStore: CoinGeckoPriceStore;
   public readonly tokensStore: TokensStore<ChainInfoWithCoreTypes>;
@@ -242,7 +251,10 @@ export class RootStore {
       }),
       ICNSQueries.use(),
       FNSQueries.use(),
-      EvmQueries.use()
+      EvmQueries.use(),
+      CardanoQueries.use({
+        projectId: getBlockFrostProjectId,
+      })
     );
 
     this.activityStore = new ActivityStore(
@@ -398,7 +410,11 @@ export class RootStore {
       // Wait for KeyRing to be fully initialized before initializing accounts
       // This prevents "No keys available" errors during startup
       const initAccountsWhenReady = () => {
-        if (this.keyRingStore.status !== undefined && this.keyRingStore.status !== 0) { // 0 = NOTLOADED
+        if (
+          this.keyRingStore.status !== undefined &&
+          this.keyRingStore.status !== 0
+        ) {
+          // 0 = NOTLOADED
           // Start init for registered chains so that users can see account address more quickly.
           for (const chainInfo of this.chainStore.chainInfos) {
             const account = this.accountStore.getAccount(chainInfo.chainId);
@@ -414,7 +430,7 @@ export class RootStore {
           setTimeout(initAccountsWhenReady, 100);
         }
       };
-      
+
       initAccountsWhenReady();
     } else {
       // When the unlock request sent from external webpage,

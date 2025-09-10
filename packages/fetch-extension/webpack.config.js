@@ -34,6 +34,10 @@ const envDefaults = {
   PROD_AUTH_CLIENT_ID: process.env["PROD_AUTH_CLIENT_ID"] || "",
   DEV_MOONPAY_API_KEY: process.env["DEV_MOONPAY_API_KEY"] || "",
   PROD_MOONPAY_API_KEY: process.env["PROD_MOONPAY_API_KEY"] || "",
+  BLOCKFROST_CARDANO_TESTNET_PROJECT_ID:
+    process.env["BLOCKFROST_CARDANO_TESTNET_PROJECT_ID"] || "",
+  BLOCKFROST_CARDANO_MAINNET_PROJECT_ID:
+    process.env["BLOCKFROST_CARDANO_MAINNET_PROJECT_ID"] || "",
 };
 const commonResolve = () => ({
   extensions: [".ts", ".tsx", ".js", ".jsx", ".css", ".scss", ".svg"],
@@ -247,7 +251,7 @@ const extensionConfig = () => {
       new NodePolyfillPlugin(),
       new NormalModuleReplacementPlugin(
         /@dcspark\/cardano-multiplatform-lib-nodejs/,
-        '@dcspark/cardano-multiplatform-lib-browser'
+        "@dcspark/cardano-multiplatform-lib-browser"
       ),
       new NormalModuleReplacementPlugin(
         /@emurgo\/cardano-serialization-lib-nodejs/,

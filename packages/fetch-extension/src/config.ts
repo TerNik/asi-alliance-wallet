@@ -3187,7 +3187,8 @@ const EmbedChainInfos: ChainInfo[] = [
       coinMinimalDenom: "lovelace",
       coinDecimals: 6,
       coinGeckoId: "cardano",
-      coinImageUrl: "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
+      coinImageUrl:
+        "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
     },
     bip44: {
       coinType: 1815,
@@ -3206,7 +3207,8 @@ const EmbedChainInfos: ChainInfo[] = [
         coinMinimalDenom: "lovelace",
         coinDecimals: 6,
         coinGeckoId: "cardano",
-        coinImageUrl: "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
+        coinImageUrl:
+          "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
       },
     ],
     feeCurrencies: [
@@ -3215,7 +3217,8 @@ const EmbedChainInfos: ChainInfo[] = [
         coinMinimalDenom: "lovelace",
         coinDecimals: 6,
         coinGeckoId: "cardano",
-        coinImageUrl: "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
+        coinImageUrl:
+          "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
         gasPriceStep: {
           low: 0.000044,
           average: 0.0001,
@@ -3224,7 +3227,8 @@ const EmbedChainInfos: ChainInfo[] = [
       },
     ],
     features: ["cardano"],
-    chainSymbolImageUrl: "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
+    chainSymbolImageUrl:
+      "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
   },
   // Cardano Testnet (Sepolia/Preview)
   {
@@ -3237,7 +3241,8 @@ const EmbedChainInfos: ChainInfo[] = [
       coinMinimalDenom: "lovelace",
       coinDecimals: 6,
       coinGeckoId: "cardano",
-      coinImageUrl: "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
+      coinImageUrl:
+        "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
     },
     bip44: {
       coinType: 1815,
@@ -3256,7 +3261,8 @@ const EmbedChainInfos: ChainInfo[] = [
         coinMinimalDenom: "lovelace",
         coinDecimals: 6,
         coinGeckoId: "cardano",
-        coinImageUrl: "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
+        coinImageUrl:
+          "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
       },
     ],
     feeCurrencies: [
@@ -3265,7 +3271,8 @@ const EmbedChainInfos: ChainInfo[] = [
         coinMinimalDenom: "lovelace",
         coinDecimals: 6,
         coinGeckoId: "cardano",
-        coinImageUrl: "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
+        coinImageUrl:
+          "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
         gasPriceStep: {
           low: 0.000044,
           average: 0.0001,
@@ -3274,7 +3281,8 @@ const EmbedChainInfos: ChainInfo[] = [
       },
     ],
     features: ["cardano"],
-    chainSymbolImageUrl: "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
+    chainSymbolImageUrl:
+      "https://assets.coingecko.com/coins/images/975/thumb/cardano.png",
     type: "testnet",
   },
 ];
