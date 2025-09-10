@@ -133,8 +133,10 @@ export class ObservableQueryEvmNativeBalanceRegistry
     const denomHelper = new DenomHelper(minimalDenom);
     const isEvm =
       chainGetter.getChain(chainId).features?.includes("evm") ?? false;
+    const isCardano =
+      chainGetter.getChain(chainId).features?.includes("cardano") ?? false;
 
-    if (!(isEvm && denomHelper.type === "native")) {
+    if (!(isEvm && denomHelper.type === "native") || isCardano) {
       return;
     }
 
