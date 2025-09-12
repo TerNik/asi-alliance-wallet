@@ -34,6 +34,7 @@ import { KeystoneService } from "../keystone";
 import { publicKeyConvert } from "secp256k1";
 import { KeystoneKeyringData } from "../keystone/cosmos-keyring";
 import { InteractionService } from "../interaction";
+import { CardanoService } from "../cardano/service";
 
 export enum KeyRingStatus {
   NOTLOADED,
@@ -106,7 +107,7 @@ export class KeyRing {
   public static getTypeOfKeyStore(
     keyStore: Omit<KeyStore, "crypto">
   ): "mnemonic" | "privateKey" | "ledger" | "keystone" {
-    const type = keyStore['type'];
+    const type = keyStore["type"];
     if (type == null) {
       return "mnemonic";
     }
@@ -145,13 +146,12 @@ export class KeyRing {
   }
 
   public isLocked(): boolean {
-    const locked = (
+    const locked =
       this.privateKey == null &&
       this.mnemonicMasterSeed == null &&
       this.ledgerPublicKeyCache == null &&
-      this.keystonePublicKey == null
-    );
-    
+      this.keystonePublicKey == null;
+
     
     return locked;
   }
@@ -235,9 +235,11 @@ export class KeyRing {
   ): Promise<Key> {
     // Check if KeyRing is ready before attempting to get key
     if (this.status === KeyRingStatus.NOTLOADED) {
-      throw new Error("KeyRing is not ready yet. Please wait for initialization to complete.");
+      throw new Error(
+        "KeyRing is not ready yet. Please wait for initialization to complete."
+      );
     }
-    
+
     // determine base coin type later via computeKeyStoreCoinType or higher-level service
     return Promise.resolve(
       this.loadKey(
@@ -543,7 +545,7 @@ export class KeyRing {
     }
 
     this.password = password;
-    
+
     this.interactionService.dispatchEvent(WEBPAGE_PORT, "status-changed", {});
   }
 
@@ -559,7 +561,7 @@ export class KeyRing {
     } else {
       this.keyStore = keyStore;
     }
-    
+
     const multiKeyStore = await this.kvStore.get<KeyStore[]>(KeyMultiStoreKey);
     if (!multiKeyStore) {
       // Restore the multi keystore if key store exist 13t multi Key store is empty.
@@ -606,7 +608,7 @@ export class KeyRing {
     let hasFixedAccountIndex = false;
     for (let i = 0; i < this.multiKeyStore.length; i++) {
       const keyStore = this.multiKeyStore[i];
-      
+
       if (keyStore.bip44HDPath && keyStore.bip44HDPath.account > 0) {
         if (keyStore.bip44HDPath.account === i) {
           keyStore.bip44HDPath.account = 0;
@@ -1178,13 +1180,19 @@ export class KeyRing {
     mnemonic: string,
     meta: Record<string, string>,
     bip44HDPath: BIP44HDPath,
-    curve: SupportedCurve = KeyCurves.secp256k1
+    curve: SupportedCurve = KeyCurves.secp256k1,
+    cardanoService: CardanoService,
+    chainId?: string
   ): Promise<{
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
     if (this.status !== KeyRingStatus.UNLOCKED || this.password == "") {
       throw new Error("Key ring is locked or not initialized");
     }
+
+    const cardanoMeta = await cardanoService
+      .createMetaFromMnemonic(mnemonic, this.password, chainId)
+      .catch(() => ({}));
     // Preserve previous behaviour — coin type is determined later when the
     // key is actually used. No need to pre-compute it here.
     const keyStore = await KeyRing.CreateMnemonicKeyStore(
@@ -1192,7 +1200,7 @@ export class KeyRing {
       kdf,
       mnemonic,
       this.password,
-      await this.assignKeyStoreIdMeta(meta),
+      await this.assignKeyStoreIdMeta({ ...meta, ...cardanoMeta }),
       bip44HDPath,
       curve
     );
@@ -1347,7 +1355,9 @@ export class KeyRing {
         type: keyStore.type,
         curve: keyStore.curve,
         meta: keyStore.meta,
-        ...(keyStore.coinTypeForChain !== undefined ? { coinTypeForChain: keyStore.coinTypeForChain } : {}),
+        ...(keyStore.coinTypeForChain !== undefined
+          ? { coinTypeForChain: keyStore.coinTypeForChain }
+          : {}),
         bip44HDPath: keyStore.bip44HDPath,
         selected: this.keyStore
           ? KeyRing.getKeyStoreId(keyStore) ===
@@ -1702,7 +1712,8 @@ export class KeyRing {
     for (const keyStore of this.multiKeyStore) {
       const defaultCoinType = useEthereumAddress ? 60 : 118;
       const coinType = keyStore.coinTypeForChain
-        ? keyStore.coinTypeForChain[ChainIdHelper.parse(chainId).identifier] ?? defaultCoinType
+        ? keyStore.coinTypeForChain[ChainIdHelper.parse(chainId).identifier] ??
+          defaultCoinType
         : defaultCoinType;
 
       switch (keyStore.type) {

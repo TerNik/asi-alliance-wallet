@@ -12,6 +12,7 @@ import { useIntl } from "react-intl";
 import { useNavigate } from "react-router";
 import { formatAddress } from "@utils/format";
 import style from "./style.module.scss";
+import { CHAIN_ID_FETCHHUB } from "../../config.ui.var";
 
 interface SetKeyRingProps {
   navigateTo?: any;
@@ -59,6 +60,16 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
         }
       }
       return;
+    };
+
+    const switchToMainnetNetwork = () => {
+      if (
+        chainStore.current.chainId === "cardano-preview" ||
+        chainStore.current.chainId === "cardano-mainnet"
+      ) {
+        chainStore.selectChain(CHAIN_ID_FETCHHUB);
+        chainStore.saveLastViewChainId();
+      }
     };
 
     return (
@@ -176,6 +187,13 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
                       try {
                         await keyRingStore.changeKeyRing(i);
                         analyticsStore.logEvent("change_wallet_click");
+                        const isCardanoSupportedWallet =
+                          keyStore?.meta["cardano"] === "true";
+                        // if the new wallet doesn't support cardano
+                        // and current chain is cardano we switch to fetchhub
+                        if (!isCardanoSupportedWallet) {
+                          switchToMainnetNetwork();
+                        }
                         loadingIndicator.setIsLoading("keyring", false);
                         chatStore.userDetailsStore.resetUser();
                         proposalStore.resetProposals();

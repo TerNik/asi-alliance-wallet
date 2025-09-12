@@ -114,7 +114,7 @@ export class KeyRingService {
     await this.keyRing.restore();
     
     // CardanoService initialized on-demand in getKey()
-    
+
     return {
       status: this.keyRing.status,
       multiKeyStoreInfo: this.keyRing.getMultiKeyStoreInfo(),
@@ -170,7 +170,7 @@ export class KeyRingService {
     try {
       const result = await this.keyRing.deleteKeyRing(index, password);
       keyStoreChanged = result.keyStoreChanged;
-      
+
       return {
         multiKeyStoreInfo: result.multiKeyStoreInfo,
         status: this.keyRing.status,
@@ -214,20 +214,10 @@ export class KeyRingService {
   }> {
     // TODO: Check mnemonic checksum.
 
-    let currentChainId: string | undefined;
-    try {
-      const { ExtensionKVStore } = await import("@keplr-wallet/common");
-      const kvStore = new ExtensionKVStore("store_chain_config");
-      currentChainId = await kvStore.get<string>("extension_last_view_chain_id");
-    } catch (error) {
-      console.warn("Failed to get current chainId for Cardano meta:", error);
-    }
-    
-    const cardanoMeta = await this.cardanoService.createMetaFromMnemonic(
-      mnemonic,
-      password,
-      currentChainId
-    ).catch((error) => {
+    const currentChainId = await this.getCurrentChainId();
+    const cardanoMeta = await this.cardanoService
+      .createMetaFromMnemonic(mnemonic, password, currentChainId)
+      .catch((error) => {
       console.error("Failed to create Cardano meta:", error);
       return {};
     });
@@ -306,6 +296,20 @@ export class KeyRingService {
     return this.keyRing.status;
   }
 
+  async getCurrentChainId() {
+    let currentChainId: string | undefined;
+    try {
+      const { ExtensionKVStore } = await import("@keplr-wallet/common");
+      const kvStore = new ExtensionKVStore("store_chain_config");
+      currentChainId = await kvStore.get<string>(
+        "extension_last_view_chain_id"
+      );
+    } catch (error) {
+      console.warn("Failed to get current chainId:", error);
+    }
+    return currentChainId;
+  }
+
   async unlock(password: string): Promise<KeyRingStatus> {
     await this.keyRing.unlock(password);
 
@@ -361,7 +365,7 @@ export class KeyRingService {
       }
 
       const ks = this.keyRing.getCurrentKeyStore();
-      
+
       if (ks && this.keyRing.status === KeyRingStatus.UNLOCKED) {
         this.cardanoServiceInitPromise = this.initializeCardanoService(ks);
         try {
@@ -993,7 +997,16 @@ Salt: ${salt}`;
   ): Promise<{
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
-    return this.keyRing.addMnemonicKey(kdf, mnemonic, meta, bip44HDPath, curve);
+    const currentChainId = await this.getCurrentChainId();
+    return this.keyRing.addMnemonicKey(
+      kdf,
+      mnemonic,
+      meta,
+      bip44HDPath,
+      curve,
+      this.cardanoService,
+      currentChainId
+    );
   }
 
   async addPrivateKey(
@@ -1055,7 +1068,7 @@ Salt: ${salt}`;
           console.error("Failed to reinitialize CardanoService:", error);
         }
       }
-        
+
       return result;
     } finally {
       this.interactionService.dispatchEvent(
