@@ -26,6 +26,7 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
       chainStore,
       analyticsStore,
       accountStore,
+      keyRingStore,
     } = useStore();
     const [cosmosSearchTerm, setCosmosSearchTerm] = useState("");
     const [evmSearchTerm, setEvmSearchTerm] = useState("");
@@ -40,7 +41,9 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
 
     const mainChainList = chainStore.chainInfosInUI.filter(
       (chainInfo) =>
-        !chainInfo.raw.beta && !chainInfo.raw.features?.includes("evm")
+        !chainInfo.raw.beta &&
+        !chainInfo.raw.features?.includes("evm") &&
+        !chainInfo.raw.features?.includes("cardano")
     );
 
     const evmChainList = chainStore.chainInfosInUI.filter((chainInfo) =>
@@ -65,6 +68,11 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
     const cardanoChainList = chainStore.chainInfosInUI.filter((chainInfo) =>
       chainInfo.features?.includes("cardano")
     );
+
+    const isCardanoSupportedWallet =
+      keyRingStore.multiKeyStoreInfo.find((item) => item.selected)?.meta[
+        "cardano"
+      ] === "true";
 
     const tabs = [
       {
@@ -366,7 +374,10 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
           </div>
         ),
       },
-      {
+    ];
+
+    if (isCardanoSupportedWallet) {
+      tabs.push({
         id: "Cardano",
         component: (
           <div>
@@ -376,23 +387,23 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
               valuesArray={cardanoChainList}
               itemsStyleProp={{ height: "100%" }}
               filterFunction={getFilteredChainValues}
-              midElement={
-                <ButtonV2
-                  styleProps={{
-                    height: "48px",
-                    marginTop: "0px",
-                    fontSize: "14px",
-                  }}
-                  onClick={(e: any) => {
-                    e.preventDefault();
-                    analyticsStore.logEvent("manage_networks_click", {
-                      pageName: "Home",
-                    });
-                    navigate("/manage-networks");
-                  }}
-                  text={"Manage networks"}
-                />
-              }
+              // midElement={
+              //   <ButtonV2
+              //     styleProps={{
+              //       height: "48px",
+              //       marginTop: "0px",
+              //       fontSize: "14px",
+              //     }}
+              //     onClick={(e: any) => {
+              //       e.preventDefault();
+              //       analyticsStore.logEvent("manage_networks_click", {
+              //         pageName: "Home",
+              //       });
+              //       navigate("/manage-networks");
+              //     }}
+              //     text={"Manage networks"}
+              //   />
+              // }
               renderResult={(chainInfo, index) => (
                 <Card
                   key={index}
@@ -451,8 +462,9 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
             />
           </div>
         ),
-      },
-    ];
+      });
+    }
+
     return (
       <div className={style["chainListContainer"]}>
         <TabsPanel

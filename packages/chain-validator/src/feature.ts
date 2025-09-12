@@ -8,6 +8,7 @@ export const SupportedChainFeatures = [
   "stargate",
   "cosmwasm",
   "evm",
+  "cardano",
   "wasmd_0.24+",
   "secretwasm",
   "ibc-transfer",
@@ -158,7 +159,7 @@ export async function checkChainFeatures(
   const features = chainInfo.features?.slice() ?? [];
 
   // avoid checking for evm networks
-  if (features.includes("evm")) {
+  if (features.includes("evm") || features.includes("cardano")) {
     return newFeatures;
   }
 
