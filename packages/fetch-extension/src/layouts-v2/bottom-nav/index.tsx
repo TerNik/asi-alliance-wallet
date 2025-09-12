@@ -94,11 +94,10 @@ const ActivityTab = () => {
   const current = chainStore.current;
   const [activityTooltip, setActivityTooltip] = useState("");
   const [activityDisabled, setActivityDisabled] = useState(false);
-  const isEvm = current.features?.includes("evm") ?? false;
   useEffect(() => {
-    if (isEvm) {
-      setActivityTooltip("Feature not available on this network");
+    if (!isFeatureAvailable(current.chainId)) {
       setActivityDisabled(true);
+      setActivityTooltip("Feature not available on this network");
     } else {
       setActivityTooltip("");
       setActivityDisabled(false);

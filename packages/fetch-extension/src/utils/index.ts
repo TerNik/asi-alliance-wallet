@@ -66,3 +66,11 @@ export function isFeatureAvailable(chainId: string): boolean {
     CHAIN_ID_REMOTE_TEST_NETWORK,
   ].includes(chainId);
 }
+
+export const getBlockFrostProjectId = (chainId: string) => {
+  return (
+    (chainId !== "cardano-mainnet"
+      ? process.env["BLOCKFROST_CARDANO_TESTNET_PROJECT_ID"]
+      : process.env["BLOCKFROST_CARDANO_MAINNET_PROJECT_ID"]) || ""
+  );
+};

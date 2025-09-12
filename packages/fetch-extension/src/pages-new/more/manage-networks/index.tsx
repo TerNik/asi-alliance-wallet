@@ -16,21 +16,34 @@ export const ManageNetworks: FunctionComponent = observer(() => {
   const intl = useIntl();
   const navigate = useNavigate();
 
-  const { chainStore, analyticsStore } = useStore();
+  const { chainStore, analyticsStore, keyRingStore } = useStore();
 
   const [cosmosSearchTerm, setCosmosSearchTerm] = useState("");
   const [evmSearchTerm, setEvmSearchTerm] = useState("");
+  const [cardanoSearchTerm, setCardanoSearchTerm] = useState("");
   const [selectedTab, setSelectedTab] = useState("Cosmos");
 
   const mainChainList = chainStore.chainInfos.filter(
-    (chainInfo) => !chainInfo.beta && !chainInfo.features?.includes("evm")
+    (chainInfo) =>
+      !chainInfo.beta &&
+      !chainInfo.features?.includes("evm") &&
+      !chainInfo.features?.includes("cardano")
   );
 
   const evmChainList = chainStore.chainInfos.filter((chainInfo) =>
     chainInfo.features?.includes("evm")
   );
 
+  const cardanoChainList = chainStore.chainInfos.filter((chainInfo) =>
+    chainInfo.features?.includes("cardano")
+  );
+
   const disabledChainList = chainStore.disabledChainInfosInUI;
+
+  const isCardanoSupportedWallet =
+    keyRingStore.multiKeyStoreInfo.find((item) => item.selected)?.meta[
+      "cardano"
+    ] === "true";
 
   const tabs = [
     {
@@ -53,6 +66,11 @@ export const ManageNetworks: FunctionComponent = observer(() => {
                     ? chainInfo.chainName[0].toUpperCase()
                     : ""
                 }
+                leftImageStyle={{
+                  backgroundColor: !chainInfo.raw.chainSymbolImageUrl
+                    ? "#dddfdf"
+                    : "transparent",
+                }}
                 heading={chainInfo.chainName}
                 rightContent={
                   <ToggleSwitchButton
@@ -87,6 +105,11 @@ export const ManageNetworks: FunctionComponent = observer(() => {
                     ? chainInfo.chainName[0].toUpperCase()
                     : ""
                 }
+                leftImageStyle={{
+                  backgroundColor: !chainInfo.raw.chainSymbolImageUrl
+                    ? "#dddfdf"
+                    : "transparent",
+                }}
                 heading={chainInfo.chainName}
                 rightContent={
                   <ToggleSwitchButton
@@ -105,9 +128,6 @@ export const ManageNetworks: FunctionComponent = observer(() => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.4)",
-                color: "white",
                 height: "48px",
                 fontSize: "14px",
                 fontWeight: 400,
@@ -124,6 +144,48 @@ export const ManageNetworks: FunctionComponent = observer(() => {
       ),
     },
   ];
+
+  if (isCardanoSupportedWallet) {
+    tabs.push({
+      id: "Cardano",
+      component: (
+        <div>
+          <SearchBar
+            searchTerm={cardanoSearchTerm}
+            onSearchTermChange={setCardanoSearchTerm}
+            valuesArray={cardanoChainList}
+            filterFunction={getFilteredChainValues}
+            renderResult={(chainInfo, index) => (
+              <Card
+                key={index}
+                leftImage={
+                  chainInfo.raw.chainSymbolImageUrl !== undefined
+                    ? chainInfo.raw.chainSymbolImageUrl
+                    : chainInfo.chainName
+                    ? chainInfo.chainName[0].toUpperCase()
+                    : ""
+                }
+                leftImageStyle={{
+                  backgroundColor: !chainInfo.raw.chainSymbolImageUrl
+                    ? "#dddfdf"
+                    : "transparent",
+                }}
+                heading={chainInfo.chainName}
+                rightContent={
+                  <ToggleSwitchButton
+                    checked={!disabledChainList.includes(chainInfo)}
+                    onChange={() => {
+                      chainStore.toggleChainInfoInUI(chainInfo.chainId);
+                    }}
+                  />
+                }
+              />
+            )}
+          />
+        </div>
+      ),
+    });
+  }
 
   return (
     <HeaderLayout

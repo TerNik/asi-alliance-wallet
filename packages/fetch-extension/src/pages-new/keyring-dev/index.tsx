@@ -12,13 +12,17 @@ import { useIntl } from "react-intl";
 import { useNavigate } from "react-router";
 import { formatAddress } from "@utils/format";
 import style from "./style.module.scss";
+import { CHAIN_ID_FETCHHUB } from "../../config.ui.var";
 
 interface SetKeyRingProps {
   navigateTo?: any;
   onItemSelect?: () => void;
+  setIsOptionsOpen?: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsSelectWalletOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 }
+
 export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
-  ({ navigateTo, onItemSelect }) => {
+  ({ navigateTo, onItemSelect, setIsOptionsOpen, setIsSelectWalletOpen }) => {
     const intl = useIntl();
     const navigate = useNavigate();
     const {
@@ -56,6 +60,16 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
         }
       }
       return;
+    };
+
+    const switchToMainnetNetwork = () => {
+      if (
+        chainStore.current.chainId === "cardano-preview" ||
+        chainStore.current.chainId === "cardano-mainnet"
+      ) {
+        chainStore.selectChain(CHAIN_ID_FETCHHUB);
+        chainStore.saveLastViewChainId();
+      }
     };
 
     return (
@@ -127,9 +141,33 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
                 </React.Fragment>
               }
               rightContent={
-                keyStore.selected
-                  ? require("@assets/svg/wireframe/check.svg")
-                  : ""
+                keyStore.selected ? (
+                  <div style={{ display: "flex", columnGap: "12px" }}>
+                    <img
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                      }}
+                      src={require("@assets/svg/wireframe/check.svg")}
+                      alt=""
+                    />
+                    <img
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => {
+                        setIsSelectWalletOpen?.(false);
+                        setIsOptionsOpen?.(true);
+                      }}
+                      src={require("@assets/svg/edit-icon.svg")}
+                      alt=""
+                    />
+                  </div>
+                ) : (
+                  ""
+                )
               }
               subheading={
                 keyStore.selected
@@ -149,6 +187,13 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
                       try {
                         await keyRingStore.changeKeyRing(i);
                         analyticsStore.logEvent("change_wallet_click");
+                        const isCardanoSupportedWallet =
+                          keyStore?.meta["cardano"] === "true";
+                        // if the new wallet doesn't support cardano
+                        // and current chain is cardano we switch to fetchhub
+                        if (!isCardanoSupportedWallet) {
+                          switchToMainnetNetwork();
+                        }
                         loadingIndicator.setIsLoading("keyring", false);
                         chatStore.userDetailsStore.resetUser();
                         proposalStore.resetProposals();

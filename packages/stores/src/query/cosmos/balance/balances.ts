@@ -91,7 +91,9 @@ export class ObservableQueryCosmosBalances extends ObservableChainQuery<Balances
     also avoid fetching the endpoint for evm networks*/
     const chainInfo = this.chainGetter.getChain(this.chainId);
     return (
-      this.bech32Address.length > 0 && !chainInfo?.features?.includes("evm")
+      this.bech32Address.length > 0 &&
+      (!chainInfo?.features?.includes("evm") ||
+        !chainInfo?.features?.includes("cardano"))
     );
   }
 
@@ -137,8 +139,10 @@ export class ObservableQueryCosmosBalanceRegistry implements BalanceRegistry {
     const denomHelper = new DenomHelper(minimalDenom);
     const isEvm =
       chainGetter.getChain(chainId).features?.includes("evm") ?? false;
+    const isCardano =
+      chainGetter.getChain(chainId).features?.includes("cardano") ?? false;
 
-    if (denomHelper.type !== "native" || isEvm) {
+    if (denomHelper.type !== "native" || isEvm || isCardano) {
       return;
     }
 
