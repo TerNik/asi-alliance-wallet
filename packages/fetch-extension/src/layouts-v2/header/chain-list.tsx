@@ -7,7 +7,7 @@ import { messageAndGroupListenerUnsubscribe } from "@graphQL/messages-api";
 import { formatAddress } from "@utils/format";
 import classnames from "classnames";
 import { observer } from "mobx-react-lite";
-import React, { FunctionComponent, useState } from "react";
+import React, { FunctionComponent, useState, useMemo } from "react";
 import { useIntl } from "react-intl";
 import { useNavigate } from "react-router";
 import { useStore } from "../../stores";
@@ -40,39 +40,44 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
     const confirm = useConfirm();
 
     const mainChainList = chainStore.chainInfosInUI.filter(
-      (chainInfo) =>
+      (chainInfo: any) =>
         !chainInfo.raw.beta &&
         !chainInfo.raw.features?.includes("evm") &&
         !chainInfo.raw.features?.includes("cardano")
     );
 
-    const evmChainList = chainStore.chainInfosInUI.filter((chainInfo) =>
+    const evmChainList = chainStore.chainInfosInUI.filter((chainInfo: any) =>
       chainInfo.raw.features?.includes("evm")
     );
 
     const betaChainList = chainStore.chainInfosInUI.filter(
-      (chainInfo) => chainInfo.raw.beta
+      (chainInfo: any) => chainInfo.raw.beta
     );
 
     const cosmosMainList = mainChainList.filter(
-      (chainInfo) => chainInfo.raw.type !== "testnet"
+      (chainInfo: any) => chainInfo.raw.type !== "testnet"
     );
 
     const evmMainList = evmChainList.filter(
-      (chainInfo) => chainInfo.raw.type !== "testnet"
+      (chainInfo: any) => chainInfo.raw.type !== "testnet"
     );
 
     const cosmosList = chainStore.showTestnet ? mainChainList : cosmosMainList;
     const evmList = chainStore.showTestnet ? evmChainList : evmMainList;
 
-    const cardanoChainList = chainStore.chainInfosInUI.filter((chainInfo) =>
-      chainInfo.features?.includes("cardano")
-    );
-
-    const isCardanoSupportedWallet =
-      keyRingStore.multiKeyStoreInfo.find((item) => item.selected)?.meta[
-        "cardano"
-      ] === "true";
+    // Use MobX computed for reactive Cardano support detection
+    const isCardanoSupportedWallet = useMemo(() => {
+      const selectedKeyStore = keyRingStore.multiKeyStoreInfo.find((item: any) => item.selected);
+      return selectedKeyStore?.meta["cardano"] === "true";
+    }, [keyRingStore.multiKeyStoreInfo]);
+    
+    // Only create cardanoChainList if wallet supports Cardano
+    const cardanoChainList = useMemo(() => {
+      if (!isCardanoSupportedWallet) return [];
+      return chainStore.chainInfosInUI.filter((chainInfo: any) =>
+        chainInfo.features?.includes("cardano")
+      );
+    }, [isCardanoSupportedWallet, chainStore.chainInfosInUI]);
 
     const tabs = [
       {
@@ -180,7 +185,7 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
               <div className={style["chain-title"]}>Beta support</div>
             )}
 
-            {betaChainList.map((chainInfo) => (
+            {betaChainList.map((chainInfo: any) => (
               <Card
                 key={chainInfo.raw.chainId}
                 leftImage={

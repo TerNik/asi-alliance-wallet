@@ -62,15 +62,6 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
       return;
     };
 
-    const switchToMainnetNetwork = () => {
-      if (
-        chainStore.current.chainId === "cardano-preview" ||
-        chainStore.current.chainId === "cardano-mainnet"
-      ) {
-        chainStore.selectChain(CHAIN_ID_FETCHHUB);
-        chainStore.saveLastViewChainId();
-      }
-    };
 
     return (
       <div>
@@ -187,12 +178,18 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
                       try {
                         await keyRingStore.changeKeyRing(i);
                         analyticsStore.logEvent("change_wallet_click");
+                        // Check if current chain is Cardano and new wallet doesn't support it
                         const isCardanoSupportedWallet =
                           keyStore?.meta["cardano"] === "true";
-                        // if the new wallet doesn't support cardano
-                        // and current chain is cardano we switch to fetchhub
-                        if (!isCardanoSupportedWallet) {
-                          switchToMainnetNetwork();
+                        const isCurrentChainCardano = 
+                          chainStore.current.chainId === "cardano-preview" ||
+                          chainStore.current.chainId === "cardano-mainnet" ||
+                          chainStore.current.chainId === "cardano-preprod";
+                        
+                        // Switch to fetchhub if current chain is Cardano but new wallet doesn't support it
+                        if (isCurrentChainCardano && !isCardanoSupportedWallet) {
+                          chainStore.selectChain(CHAIN_ID_FETCHHUB);
+                          chainStore.saveLastViewChainId();
                         }
                         loadingIndicator.setIsLoading("keyring", false);
                         chatStore.userDetailsStore.resetUser();
