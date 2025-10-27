@@ -131,6 +131,49 @@ export class CardanoService {
   }
 
   /**
+   * Estimate transaction fee and total amount for ADA send
+   */
+  async estimateSendAda(params: {
+    to: string;
+    amount: string; // in lovelaces
+  }): Promise<{ fee: string; total: string }> {
+    if (!this.keyRing) {
+      throw new Error(
+        "CardanoService not initialised. Call restoreFromKeyStore() first."
+      );
+    }
+
+    if (!this.keyRing.isTransactionReady()) {
+      throw new Error(
+        "CardanoService not ready for transactions. Wallet manager not initialized."
+      );
+    }
+
+    try {
+      // Cardano fee estimation uses linear formula: a * size + b
+      // Typical simple tx size is ~300-500 bytes
+      // Using conservative estimate with 500 bytes
+      // Protocol parameters: a = 0.000044 ada/byte, b = 0.155381 ada
+      const TYPICAL_TX_SIZE_BYTES = 500;
+      const FEE_COEFFICIENT = 0.000044; // ada per byte
+      const FEE_CONSTANT = 0.155381; // ada
+      
+      const estimatedFeeAda = (TYPICAL_TX_SIZE_BYTES * FEE_COEFFICIENT) + FEE_CONSTANT;
+      const estimatedFeeLovelaces = Math.ceil(estimatedFeeAda * 1000000).toString();
+      
+      const totalAmount = (BigInt(params.amount) + BigInt(estimatedFeeLovelaces)).toString();
+      
+      return {
+        fee: estimatedFeeLovelaces,
+        total: totalAmount
+      };
+    } catch (error) {
+      console.error("Failed to estimate Cardano transaction fee:", error);
+      throw new Error(`Failed to estimate transaction: ${error.message || 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Checks service readiness for transaction operations
    * Requires both keyRing and walletManager to be initialized
    */

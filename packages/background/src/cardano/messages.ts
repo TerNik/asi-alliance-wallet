@@ -102,3 +102,45 @@ export class IsCardanoReadyMsg extends Message<boolean> {
     return IsCardanoReadyMsg.type();
   }
 }
+
+/**
+ * Message for estimating Cardano transaction fee
+ */
+export class EstimateSendAdaMsg extends Message<{ fee: string; total: string }> {
+  public static type() {
+    return "cardano-estimate-send-ada";
+  }
+
+  constructor(
+    public readonly to: string,
+    public readonly amount: string // in lovelaces
+  ) {
+    super();
+  }
+
+  validateBasic(): void {
+    if (!this.to) {
+      throw new Error("recipient address is empty");
+    }
+
+    if (!this.amount) {
+      throw new Error("amount is empty");
+    }
+
+    if (isNaN(Number(this.amount)) || Number(this.amount) <= 0) {
+      throw new Error("amount must be a positive number");
+    }
+  }
+
+  override approveExternal(): boolean {
+    return true;
+  }
+
+  route(): string {
+    return ROUTE;
+  }
+
+  type(): string {
+    return EstimateSendAdaMsg.type();
+  }
+}

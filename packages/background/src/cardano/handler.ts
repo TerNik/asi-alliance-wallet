@@ -1,5 +1,5 @@
 import { Env, Handler, InternalHandler, Message } from "@keplr-wallet/router";
-import { SendAdaMsg, GetCardanoBalanceMsg, IsCardanoReadyMsg } from "./messages";
+import { SendAdaMsg, GetCardanoBalanceMsg, IsCardanoReadyMsg, EstimateSendAdaMsg } from "./messages";
 import { CardanoService } from "./service";
 
 export const getHandler: (service: CardanoService) => Handler = (
@@ -13,6 +13,8 @@ export const getHandler: (service: CardanoService) => Handler = (
         return handleGetCardanoBalanceMsg(service)(env, msg as GetCardanoBalanceMsg);
       case IsCardanoReadyMsg:
         return handleIsCardanoReadyMsg(service)(env, msg as IsCardanoReadyMsg);
+      case EstimateSendAdaMsg:
+        return handleEstimateSendAdaMsg(service)(env, msg as EstimateSendAdaMsg);
       default:
         throw new Error("Unknown msg type");
     }
@@ -63,5 +65,23 @@ const handleIsCardanoReadyMsg: (
 ) => InternalHandler<IsCardanoReadyMsg> = (service) => {
   return async (_, _msg) => {
     return service.isReady();
+  };
+};
+
+/**
+ * Handler for estimating Cardano transaction fee
+ */
+const handleEstimateSendAdaMsg: (
+  service: CardanoService
+) => InternalHandler<EstimateSendAdaMsg> = (service) => {
+  return async (_, msg) => {
+    if (!service.isReady()) {
+      throw new Error("Cardano service not ready. Please unlock wallet first.");
+    }
+
+    return await service.estimateSendAda({
+      to: msg.to,
+      amount: msg.amount
+    });
   };
 };
