@@ -306,8 +306,77 @@ export class CardanoWalletManager {
   }
 
   /**
+   * Estimates transaction fee for ADA send using SDK's coin selection
+   * Uses txBuilder.build().inspect() pattern like lace for accurate fee calculation
+   */
+  async estimateSendAda(params: {
+    to: string;
+    amount: string;
+    memo?: string;
+  }): Promise<{ fee: string; total: string }> {
+    if (!this.wallet) {
+      throw new Error("Transaction features unavailable without Blockfrost API key");
+    }
+    
+    try {
+      const { Cardano } = await import('@cardano-sdk/core');
+      const { firstValueFrom } = await import('rxjs');
+      const { getAuxiliaryData } = await import('./wallet/lib/get-auxiliary-data');
+      const { TX } = await import('./config/config');
+      
+      const address = Cardano.Address.fromBech32(params.to);
+      const output = {
+        address,
+        value: { coins: BigInt(params.amount) }
+      };
+      
+      const auxiliaryData = params.memo 
+        ? getAuxiliaryData({ metadataString: params.memo })
+        : undefined;
+      
+      const txBuilder = this.createTxBuilder();
+      const tip = await firstValueFrom(this.tip$);
+      const tipSlot = (tip as { slot: number }).slot;
+      
+      txBuilder.addOutput(output);
+      
+      if (auxiliaryData?.blob) {
+        txBuilder.metadata(auxiliaryData.blob);
+      }
+      
+      txBuilder.setValidityInterval({
+        invalidHereafter: Cardano.Slot(tipSlot + TX.invalid_hereafter),
+      });
+      
+      const tx = txBuilder.build();
+      const inspection = await tx.inspect();
+      
+      const fee = inspection.inputSelection.fee.toString();
+      const totalAmount = (BigInt(params.amount) + BigInt(fee)).toString();
+      
+      return {
+        fee,
+        total: totalAmount
+      };
+    } catch (error) {
+      console.error("Failed to estimate Cardano transaction fee:", error);
+      const TYPICAL_TX_SIZE_BYTES = 500;
+      const FEE_COEFFICIENT = 0.000044; // ada per byte
+      const FEE_CONSTANT = 0.155381; // ada
+      const estimatedFeeAda = (TYPICAL_TX_SIZE_BYTES * FEE_COEFFICIENT) + FEE_CONSTANT;
+      const estimatedFeeLovelaces = Math.ceil(estimatedFeeAda * 1000000).toString();
+      const totalAmount = (BigInt(params.amount) + BigInt(estimatedFeeLovelaces)).toString();
+      
+      return {
+        fee: estimatedFeeLovelaces,
+        total: totalAmount
+      };
+    }
+  }
+
+  /**
    * High-level function for sending ADA
-   * Delegates execution to modular function from wallet/lib
+   * Uses wallet/lib/buildTransaction pattern for consistency with lace-style approach
    */
   async sendAda(params: {
     to: string;
@@ -318,21 +387,43 @@ export class CardanoWalletManager {
       throw new Error("Transaction features unavailable without Blockfrost API key");
     }
     
-    const { Cardano } = await import('@cardano-sdk/core');
-    const address = Cardano.Address.fromBech32(params.to);
-    const value = { coins: BigInt(params.amount) };
-    const output = { address, value } as any;
-    
-    const auxiliaryData = params.memo ? { blob: { 674: params.memo } } as any : undefined;
-    
-    const { buildTx, signAndSubmit } = await import('./api/extension/wallet');
-    const tx = await buildTx({
-      output,
-      auxiliaryData,
-      walletManager: this,
-    });
-    
-    return await signAndSubmit({ tx, walletManager: this });
+    try {
+      const { Cardano } = await import('@cardano-sdk/core');
+      const { buildTransaction } = await import('./wallet/lib');
+      const { getAuxiliaryData } = await import('./wallet/lib/get-auxiliary-data');
+      
+      const address = Cardano.Address.fromBech32(params.to);
+      const output = {
+        address,
+        value: { coins: BigInt(params.amount) }
+      };
+      
+      const auxiliaryData = params.memo 
+        ? getAuxiliaryData({ metadataString: params.memo })
+        : undefined;
+      
+      const txProps = {
+        outputs: new Set([output]),
+        ...(auxiliaryData && { auxiliaryData })
+      };
+      
+      const { transaction } = await buildTransaction(txProps, this);
+      
+      const finalizedTx = await this.finalizeTx({ tx: transaction });
+      
+      const txId = await this.submitTx(finalizedTx);
+      
+      return typeof txId === 'string' ? txId : txId.toString();
+    } catch (error) {
+      console.error("Failed to send ADA transaction:", error);
+      if (error?.message?.includes('insufficient')) {
+        throw new Error('Insufficient funds for transaction');
+      }
+      if (error?.message?.includes('network')) {
+        throw new Error('Network error. Please try again');
+      }
+      throw error;
+    }
   }
 
   // Key agent access for CardanoKeyRing
