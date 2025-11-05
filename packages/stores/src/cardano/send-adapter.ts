@@ -1,14 +1,11 @@
 import { AppCurrency } from "@keplr-wallet/types";
 import { DenomHelper } from "@keplr-wallet/common";
 import { MakeTxResponse } from "../account/types";
-import { MessageRequester } from "@keplr-wallet/router";
+import { MessageRequester, BACKGROUND_PORT } from "@keplr-wallet/router";
 import { 
   EstimateSendAdaMsg, 
   SendAdaMsg 
 } from "@keplr-wallet/background";
-
-// Cardano specific route
-const ROUTE = "background-cardano";
 
 /**
  * Cardano transaction adapter that implements the unified Tx handle interface
@@ -16,7 +13,8 @@ const ROUTE = "background-cardano";
  */
 export class CardanoSendAdapter {
   constructor(
-    private readonly messageRequester: MessageRequester
+    private readonly messageRequester: MessageRequester,
+    private readonly chainId: string
   ) {}
 
   /**
@@ -53,14 +51,15 @@ export class CardanoSendAdapter {
       simulate: async () => {
         try {
           const estimate = await this.messageRequester.sendMessage(
-            ROUTE,
-            new EstimateSendAdaMsg(recipient, actualAmount)
+            BACKGROUND_PORT,
+            new EstimateSendAdaMsg(recipient, actualAmount, this.chainId)
           );
 
           return {
             gasUsed: parseInt(estimate.fee, 10)
           };
         } catch (error) {
+          console.error("[CardanoSendAdapter] Failed to estimate transaction:", error);
           throw error;
         }
       },
@@ -72,8 +71,8 @@ export class CardanoSendAdapter {
       ) => {
         try {
           const txHash = await this.messageRequester.sendMessage(
-            ROUTE,
-            new SendAdaMsg(recipient, actualAmount)
+            BACKGROUND_PORT,
+            new SendAdaMsg(recipient, actualAmount, _memo, this.chainId)
           );
 
           if (onTxEvents?.onBroadcasted) {
@@ -99,8 +98,8 @@ export class CardanoSendAdapter {
       ) => {
         try {
           const txHash = await this.messageRequester.sendMessage(
-            ROUTE,
-            new SendAdaMsg(recipient, actualAmount)
+            BACKGROUND_PORT,
+            new SendAdaMsg(recipient, actualAmount, _memo, this.chainId)
           );
 
           if (onTxEvents?.onBroadcasted) {
@@ -125,8 +124,8 @@ export class CardanoSendAdapter {
       ) => {
         try {
           const txHash = await this.messageRequester.sendMessage(
-            ROUTE,
-            new SendAdaMsg(recipient, actualAmount)
+            BACKGROUND_PORT,
+            new SendAdaMsg(recipient, actualAmount, _memo, this.chainId)
           );
 
           if (onTxEvents?.onBroadcasted) {

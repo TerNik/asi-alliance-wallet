@@ -108,7 +108,7 @@ export function getNetworkConfig(network: 'mainnet' | 'testnet'): BlockfrostConf
   if (network === 'mainnet') {
     return isValidApiKey(configs.mainnet.projectId) ? configs.mainnet : null;
   } else {
-    // Try preview first, then preprod
+    // Try preview first, then preprod, then sanchonet
     if (isValidApiKey(configs.preview.projectId)) {
       return configs.preview;
     }

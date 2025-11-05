@@ -16,17 +16,19 @@ export interface CardanoAccount {
 }
 
 export class CardanoAccountImpl {
+  private readonly sendAdapter: CardanoSendAdapter;
+
   constructor(
     protected readonly base: AccountSetBase,
     protected readonly chainGetter: ChainGetter,
     protected readonly chainId: string,
     protected readonly messageRequester: MessageRequester
   ) {
-    const sendAdapter = new CardanoSendAdapter(messageRequester);
+    this.sendAdapter = new CardanoSendAdapter(messageRequester, chainId);
     
     // Register send token transaction handler for Cardano
     this.base.registerMakeSendTokenFn((amount, currency, recipient) => {
-      return this.processMakeSendTokenTx(amount, currency, recipient, sendAdapter);
+      return this.processMakeSendTokenTx(amount, currency, recipient, this.sendAdapter);
     });
   }
 

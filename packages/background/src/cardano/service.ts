@@ -33,12 +33,17 @@ export class CardanoService {
           Crypto.decrypt(crypto, keyStore as any, pwd)
       : undefined;
     
-    await this.keyRing.restore(
-      store as KeyStore,
-      password,
-      decryptFn,
-      chainId
-    );
+    try {
+      await this.keyRing.restore(
+        store as KeyStore,
+        password,
+        decryptFn,
+        chainId
+      );
+    } catch (error) {
+      console.error("[CardanoService] Failed to restore from keystore:", error);
+      throw error;
+    }
 
     await this.waitForKeyAgentReady();
   }
@@ -79,17 +84,27 @@ export class CardanoService {
     amount: string; // in lovelaces (1 ADA = 1,000,000 lovelaces)
     memo?: string;
   }): Promise<string> {
+    console.log("[CardanoService] sendAda called with:", {
+      to: params.to,
+      amount: params.amount,
+      memo: params.memo
+    });
+
     if (!this.keyRing) {
+      console.error("[CardanoService] sendAda: keyRing not initialized");
       throw new Error(
         "CardanoService not initialised. Call restoreFromKeyStore() first."
       );
     }
 
     if (!this.keyRing.isTransactionReady()) {
+      console.error("[CardanoService] sendAda: keyRing not ready for transactions");
       throw new Error(
         "CardanoService not ready for transactions. Wallet manager not initialized."
       );
     }
+
+    console.log("[CardanoService] sendAda: All checks passed, proceeding with transaction");
 
     if (this.notification) {
       this.notification.create({
@@ -100,7 +115,9 @@ export class CardanoService {
     }
 
     try {
+      console.log("[CardanoService] sendAda: Calling keyRing.sendAda...");
       const txId = await this.keyRing.sendAda(params);
+      console.log("[CardanoService] sendAda: Transaction successful, txId:", txId);
 
       if (this.notification) {
         this.notification.create({
@@ -112,6 +129,7 @@ export class CardanoService {
 
       return txId;
     } catch (error) {
+      console.error("[CardanoService] sendAda: Error occurred:", error);
       this.processCardanoTxError(error);
       throw error;
     }
@@ -155,7 +173,12 @@ export class CardanoService {
       throw new Error("Wallet manager not initialized");
     }
 
-    return await walletManager.estimateSendAda(params);
+    try {
+      return await walletManager.estimateSendAda(params);
+    } catch (error) {
+      console.error("[CardanoService] Failed to estimate transaction:", error);
+      throw error;
+    }
   }
 
   /**

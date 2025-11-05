@@ -101,10 +101,18 @@ export const SendPhase2: React.FC<SendPhase2Props> = observer(
         // Prefer not to use the gas config or fee config,
         // because gas simulator can change the gas config and fee config from the result of reaction,
         // and it can make repeated reaction.
+        console.log("[SendPhase2] simulateGasFn: checking errors:", {
+          amountError: sendConfigs.amountConfig.error?.message || sendConfigs.amountConfig.error?.constructor?.name,
+          recipientError: sendConfigs.recipientConfig.error?.message || sendConfigs.recipientConfig.error?.constructor?.name,
+          recipient: sendConfigs.recipientConfig.recipient,
+          rawRecipient: sendConfigs.recipientConfig.rawRecipient
+        });
+        
         if (
           sendConfigs.amountConfig.error != null ||
           sendConfigs.recipientConfig.error != null
         ) {
+          console.error("[SendPhase2] simulateGasFn: errors found, throwing Not ready to simulate tx");
           throw new Error("Not ready to simulate tx");
         }
 

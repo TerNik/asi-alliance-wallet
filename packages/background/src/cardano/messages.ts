@@ -12,7 +12,8 @@ export class SendAdaMsg extends Message<string> {
   constructor(
     public readonly to: string,
     public readonly amount: string, // in lovelaces
-    public readonly memo?: string
+    public readonly memo?: string,
+    public readonly chainId?: string // Optional chainId to ensure correct network
   ) {
     super();
   }
@@ -113,7 +114,8 @@ export class EstimateSendAdaMsg extends Message<{ fee: string; total: string }> 
 
   constructor(
     public readonly to: string,
-    public readonly amount: string // in lovelaces
+    public readonly amount: string, // in lovelaces
+    public readonly chainId?: string // Optional chainId to ensure correct network
   ) {
     super();
   }

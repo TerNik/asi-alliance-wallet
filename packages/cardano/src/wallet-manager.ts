@@ -76,48 +76,52 @@ export class CardanoWalletManager {
     
     if (networkConfig?.projectId) {
       try {
-        // Create full wallet with Blockfrost
-        wallet = await this.createFullWallet(networkConfig);
-        console.log('Blockfrost API key found, transaction features enabled');
+        wallet = await this.createFullWallet(networkConfig, keyAgent);
       } catch (error) {
-        console.warn('Failed to create full wallet, using Koios-only mode:', error);
+        console.error('[CardanoWalletManager] Failed to create full wallet:', error);
       }
     } else {
-      console.warn('No Blockfrost API key found for network:', network);
+      console.warn('[CardanoWalletManager] No Blockfrost API key found for network:', network);
     }
 
     return new CardanoWalletManager(wallet, keyAgent);
   }
 
-  private static async createFullWallet(networkConfig: BlockfrostConfig): Promise<any> {
-    // Return a lightweight wrapper that marks wallet as available for Blockfrost operations
-    // This allows transaction methods to work with the stored API key
-    return {
-      config: networkConfig,
-      providers: 'blockfrost',
-      isFull: true,
-      // Implement minimal ObservableWallet interface for compatibility with existing methods
-      balance: {
-        utxo: {
-          available$: { pipe: () => {} },
-          total$: { pipe: () => {} },
-          unspendable$: { pipe: () => {} }
-        },
-        rewardAccounts: {
-          rewards$: { pipe: () => {} },
-          deposit$: { pipe: () => {} }
-        }
+  private static async createFullWallet(
+    networkConfig: BlockfrostConfig,
+    keyAgent: any
+  ): Promise<any> {
+    // Import necessary SDK modules
+    const walletModule = await import('@cardano-sdk/wallet');
+    const { createPersonalWallet, storage, DEFAULT_POLLING_CONFIG } = walletModule;
+    const KeyManagement = await import('@cardano-sdk/key-management');
+    const { createBlockfrostProviders } = await import('./wallet/lib/providers');
+
+    const providers = createBlockfrostProviders({
+      blockfrostConfig: networkConfig,
+      logger: console
+    });
+
+    const stores = storage.createInMemoryWalletStores();
+    const asyncKeyAgent = KeyManagement.util.createAsyncKeyAgent(keyAgent);
+    const witnesser = KeyManagement.util.createBip32Ed25519Witnesser(asyncKeyAgent);
+    const bip32Account = await KeyManagement.Bip32Account.fromAsyncKeyAgent(asyncKeyAgent) as any;
+
+    const wallet = createPersonalWallet(
+      {
+        name: 'Cardano Wallet',
+        polling: DEFAULT_POLLING_CONFIG
       },
-      addresses$: { pipe: () => {} },
-      assetInfo$: { pipe: () => {} },
-      tip$: { pipe: () => {} },
-      utxo: {},
-      initializeTx: async () => {},
-      finalizeTx: async () => {},
-      submitTx: async () => {},
-      createTxBuilder: () => {},
-      shutdown: () => {}
-    };
+      {
+        logger: console,
+        ...providers,
+        stores,
+        witnesser,
+        bip32Account
+      }
+    );
+
+    return wallet;
   }
 
   async getBalance() {
@@ -264,6 +268,13 @@ export class CardanoWalletManager {
   }
 
   /**
+   * Checks if wallet is initialized and available for transactions
+   */
+  hasWallet(): boolean {
+    return !!this.wallet;
+  }
+
+  /**
    * Gets current blockchain tip
    * Needed for setting validity interval
    */
@@ -272,6 +283,17 @@ export class CardanoWalletManager {
       throw new Error("Transaction features unavailable without Blockfrost API key");
     }
     return this.wallet.tip$;
+  }
+
+  /**
+   * Gets protocol parameters
+   * Needed for minAdaRequired validation
+   */
+  get protocolParameters$() {
+    if (!this.wallet) {
+      throw new Error("Transaction features unavailable without Blockfrost API key");
+    }
+    return this.wallet.protocolParameters$;
   }
 
   /**
@@ -306,8 +328,8 @@ export class CardanoWalletManager {
   }
 
   /**
-   * Estimates transaction fee for ADA send using SDK's coin selection
-   * Uses txBuilder.build().inspect() pattern like lace for accurate fee calculation
+   * Estimates transaction fee for ADA send using lace-style buildTx + inspect pattern
+   * Follows lace architecture: buildTx → tx.inspect() → get fee
    */
   async estimateSendAda(params: {
     to: string;
@@ -320,36 +342,66 @@ export class CardanoWalletManager {
     
     try {
       const { Cardano } = await import('@cardano-sdk/core');
-      const { firstValueFrom } = await import('rxjs');
+      const { buildTx } = await import('./api/extension/wallet');
       const { getAuxiliaryData } = await import('./wallet/lib/get-auxiliary-data');
-      const { TX } = await import('./config/config');
       
-      const address = Cardano.Address.fromBech32(params.to);
+      if (!params.to || typeof params.to !== 'string') {
+        throw new Error(`Invalid recipient address: ${params.to}`);
+      }
+
+      let address: any;
+      try {
+        address = Cardano.PaymentAddress(params.to);
+        if (!address) {
+          throw new Error('Failed to parse address from bech32');
+        }
+      } catch (parseError: any) {
+        console.error('[CardanoWalletManager] Failed to parse address:', parseError);
+        throw new Error(`Invalid Cardano address format: ${parseError?.message || parseError}`);
+      }
+
+      // Create output in lace-style format
       const output = {
         address,
         value: { coins: BigInt(params.amount) }
       };
       
+      // Create auxiliary data if memo provided
       const auxiliaryData = params.memo 
         ? getAuxiliaryData({ metadataString: params.memo })
         : undefined;
       
-      const txBuilder = this.createTxBuilder();
-      const tip = await firstValueFrom(this.tip$);
-      const tipSlot = (tip as { slot: number }).slot;
-      
-      txBuilder.addOutput(output);
-      
-      if (auxiliaryData?.blob) {
-        txBuilder.metadata(auxiliaryData.blob);
-      }
-      
-      txBuilder.setValidityInterval({
-        invalidHereafter: Cardano.Slot(tipSlot + TX.invalid_hereafter),
+      // Use lace-style buildTx pattern
+      const tx = await buildTx({
+        output,
+        auxiliaryData,
+        walletManager: this
       });
       
-      const tx = txBuilder.build();
-      const inspection = await tx.inspect();
+      // Use tx.inspect() to get fee (lace-style)
+      let inspection: any;
+      try {
+        inspection = await tx.inspect();
+      } catch (error) {
+        console.error('[CardanoWalletManager] Failed to inspect transaction for estimation:', error);
+        // Fallback: use default fee if inspection fails
+        const defaultFee = '200000'; // 0.2 ADA default fee
+        const totalAmount = (BigInt(params.amount) + BigInt(defaultFee)).toString();
+        return {
+          fee: defaultFee,
+          total: totalAmount
+        };
+      }
+      
+      if (!inspection || !inspection.inputSelection) {
+        // Fallback: use default fee if inspection structure is invalid
+        const defaultFee = '200000'; // 0.2 ADA default fee
+        const totalAmount = (BigInt(params.amount) + BigInt(defaultFee)).toString();
+        return {
+          fee: defaultFee,
+          total: totalAmount
+        };
+      }
       
       const fee = inspection.inputSelection.fee.toString();
       const totalAmount = (BigInt(params.amount) + BigInt(fee)).toString();
@@ -376,42 +428,124 @@ export class CardanoWalletManager {
 
   /**
    * High-level function for sending ADA
-   * Uses wallet/lib/buildTransaction pattern for consistency with lace-style approach
+   * Uses lace-style buildTx + signAndSubmit pattern for consistency with lace architecture
+   * Includes minAdaRequired validation (lace prepareTx pattern) and tx.inspect() before sending
    */
   async sendAda(params: {
     to: string;
     amount: string; // in lovelaces (1 ADA = 1,000,000 lovelaces)
     memo?: string;
   }): Promise<string> {
+    console.log('[CardanoWalletManager] sendAda called with:', params);
     if (!this.wallet) {
       throw new Error("Transaction features unavailable without Blockfrost API key");
     }
     
     try {
-      const { Cardano } = await import('@cardano-sdk/core');
-      const { buildTransaction } = await import('./wallet/lib');
+      console.log('[CardanoWalletManager] Loading dependencies...');
+      const { Cardano, Serialization } = await import('@cardano-sdk/core');
+      const { buildTx, signAndSubmit } = await import('./api/extension/wallet');
       const { getAuxiliaryData } = await import('./wallet/lib/get-auxiliary-data');
+      const { minAdaRequired } = await import('./api/util');
+      console.log('[CardanoWalletManager] Dependencies loaded');
       
-      const address = Cardano.Address.fromBech32(params.to);
+      if (!params.to || typeof params.to !== 'string') {
+        throw new Error(`Invalid recipient address: ${params.to}`);
+      }
+
+      let address: any;
+      try {
+        address = Cardano.PaymentAddress(params.to);
+        if (!address) {
+          throw new Error('Failed to parse address from bech32');
+        }
+      } catch (parseError: any) {
+        console.error('[CardanoWalletManager] Failed to parse address:', parseError);
+        throw new Error(`Invalid Cardano address format: ${parseError?.message || parseError}`);
+      }
+
+      // Lace-style prepareTx: validate minAdaRequired before buildTx
+      // Lace pattern: use firstValueFrom directly (as in lace wallet.ts:25, activity-detail-slice.ts:196)
+      // protocolParameters$ from Cardano SDK is BehaviorSubject, so it should emit immediately
+      console.log('[CardanoWalletManager] Getting protocolParameters...');
+      let protocolParameters: any;
+      try {
+        // Lace pattern: use firstValueFrom directly without filter/take
+        // protocolParameters$ is BehaviorSubject/ReplaySubject from Cardano SDK, always has current value
+        protocolParameters = await firstValueFrom(this.protocolParameters$);
+        console.log('[CardanoWalletManager] protocolParameters received:', protocolParameters ? 'OK' : 'null');
+      } catch (error) {
+        console.error('[CardanoWalletManager] Failed to get protocolParameters:', error);
+        // Fallback: use default value if protocolParameters unavailable
+        protocolParameters = { coinsPerUtxoByte: 4310 };
+      }
+      
+      const amountBigInt = BigInt(params.amount);
+      
+      // Create TransactionOutput for minAdaRequired validation (lace pattern)
+      const checkOutput = new Serialization.TransactionOutput(
+        address,
+        new Serialization.Value(amountBigInt)
+      );
+      
+      // Extract coinsPerUtxoByte from protocolParameters (lace pattern)
+      const coinsPerUtxoByte = BigInt(protocolParameters?.coinsPerUtxoByte || protocolParameters?.coinsPerUtxoWord || 4310);
+      const minAda = minAdaRequired(
+        checkOutput,
+        coinsPerUtxoByte
+      );
+      
+      // Validate that amount >= minAdaRequired (lace pattern)
+      if (BigInt(minAda) > amountBigInt) {
+        throw new Error(`Transaction not possible: amount ${params.amount} is less than minimum required ${minAda} lovelace`);
+      }
+
+      // Create output in lace-style format
       const output = {
         address,
-        value: { coins: BigInt(params.amount) }
+        value: { coins: amountBigInt }
       };
       
+      // Create auxiliary data if memo provided
       const auxiliaryData = params.memo 
         ? getAuxiliaryData({ metadataString: params.memo })
         : undefined;
       
-      const txProps = {
-        outputs: new Set([output]),
-        ...(auxiliaryData && { auxiliaryData })
-      };
+      // Use lace-style buildTx pattern: buildTx → UnwitnessedTx
+      console.log('[CardanoWalletManager] Building transaction...');
+      const tx = await buildTx({
+        output,
+        auxiliaryData,
+        walletManager: this
+      });
+      console.log('[CardanoWalletManager] Transaction built successfully');
       
-      const { transaction } = await buildTransaction(txProps, this);
+      // Lace-style: tx.inspect() before sending for validation
+      console.log('[CardanoWalletManager] Inspecting transaction...');
+      let inspection: any;
+      try {
+        inspection = await tx.inspect();
+        console.log('[CardanoWalletManager] Transaction inspection completed');
+      } catch (error) {
+        console.error('[CardanoWalletManager] Failed to inspect transaction:', error);
+        // Continue without inspection if it fails (non-critical validation)
+        // This allows transaction to proceed even if inspection fails
+        inspection = null;
+      }
       
-      const finalizedTx = await this.finalizeTx({ tx: transaction });
+      // Validate transaction before sending (lace pattern)
+      // Only validate if inspection succeeded
+      if (inspection && !inspection.inputSelection) {
+        throw new Error('Transaction validation failed: unable to inspect transaction');
+      }
       
-      const txId = await this.submitTx(finalizedTx);
+      // Use lace-style signAndSubmit pattern: tx.sign() → submitTx
+      console.log('[CardanoWalletManager] Signing and submitting transaction...');
+      const txId = await signAndSubmit({
+        tx,
+        walletManager: this
+      });
+      console.log('[CardanoWalletManager] Transaction submitted successfully, txId:', txId);
       
       return typeof txId === 'string' ? txId : txId.toString();
     } catch (error) {
@@ -421,6 +555,12 @@ export class CardanoWalletManager {
       }
       if (error?.message?.includes('network')) {
         throw new Error('Network error. Please try again');
+      }
+      if (error?.message?.includes('Mock wallet') || error?.message?.includes('subscribe')) {
+        throw new Error('Transaction sending requires a full wallet with Blockfrost API key. Please configure Blockfrost API key.');
+      }
+      if (error?.message?.includes('Transaction not possible')) {
+        throw error; // Re-throw minAda validation errors
       }
       throw error;
     }

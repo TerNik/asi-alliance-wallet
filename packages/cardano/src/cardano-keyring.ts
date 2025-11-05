@@ -147,7 +147,7 @@ export class CardanoKeyRing {
       // DO NOT extract keyAgent from walletManager - use separate keyAgent instances
       // WalletManager has its own keyAgent for transactions, this.keyAgent is for address derivation
     } catch (error) {
-      console.warn("Failed to create CardanoWalletManager:", error);
+      console.error("[CardanoKeyRing] Failed to create CardanoWalletManager:", error);
       this.walletManager = undefined;
     }
   }
@@ -248,9 +248,14 @@ export class CardanoKeyRing {
 
   /**
    * Checks readiness for transaction operations
+   * Requires both keyAgent and walletManager with wallet initialized
    */
   isTransactionReady(): boolean {
-    return !!this.keyAgent;
+    const keyAgentExists = !!this.keyAgent;
+    const walletManagerExists = !!this.walletManager;
+    const hasWallet = this.walletManager?.hasWallet() ?? false;
+    
+    return keyAgentExists && walletManagerExists && hasWallet;
   }
 
   /**
@@ -268,14 +273,18 @@ export class CardanoKeyRing {
     amount: string; // in lovelaces
     memo?: string;
   }): Promise<string> {
+    console.log('[CardanoKeyRing] sendAda called with:', params);
     if (!this.walletManager) {
       throw new Error("CardanoWalletManager not initialized - transaction features unavailable without API key");
     }
     
     try {
-      return await this.walletManager.sendAda(params);
+      console.log('[CardanoKeyRing] Calling walletManager.sendAda...');
+      const result = await this.walletManager.sendAda(params);
+      console.log('[CardanoKeyRing] walletManager.sendAda completed, txId:', result);
+      return result;
     } catch (error) {
-      console.error("Failed to send ADA transaction:", error);
+      console.error("[CardanoKeyRing] Failed to send ADA transaction:", error);
       throw new Error(`Transaction failed: ${error.message || 'Unknown error'}`);
     }
   }

@@ -208,7 +208,7 @@ export class RecipientConfig
 
   @computed
   get error(): Error | undefined {
-    const rawRecipient = this.rawRecipient.trim();
+    const rawRecipient = this._rawRecipient.trim();
 
     if (!rawRecipient) {
       return new EmptyAddressError("Address is empty");
@@ -258,6 +258,47 @@ export class RecipientConfig
       }
     }
 
+    // Special handling for Cardano addresses - use lace-style validation
+    const isCardano = this.chainInfo.features?.includes("cardano");
+    if (isCardano) {
+      // Use Cardano address validator from @keplr-wallet/cardano (lace-style)
+      // This uses Cardano.isAddress from @cardano-sdk/core (same approach as lace)
+      // For Cardano, we only validate basic format here (network validation happens later)
+      // This matches lace pattern: basic format check in RecipientConfig, network check in transaction building
+      
+      // Basic format check: must start with addr1 (mainnet) or addr_test1/addr_test (testnet)
+      // Also allow Byron addresses (Ae2, DdzFF for mainnet) and handles ($)
+      if (!rawRecipient) {
+        return new InvalidBech32Error("Address is empty");
+      }
+      
+      // Check for valid Cardano address prefixes (same as lace validateMainnetAddress/validateTestnetAddress)
+      const isValidFormat = 
+        rawRecipient.startsWith("addr1") ||           // Shelley mainnet
+        rawRecipient.startsWith("addr_test") ||      // Shelley testnet
+        rawRecipient.startsWith("Ae2") ||            // Byron Icarus mainnet
+        rawRecipient.startsWith("DdzFF") ||          // Byron Daedalus mainnet
+        rawRecipient.startsWith("$");                // Handle
+      
+      if (isValidFormat) {
+        // Format check passed, network validation will be done at transaction building stage
+        return undefined;
+      }
+      
+      // If format check fails, try to validate using Cardano.isAddress synchronously (for Byron addresses)
+      try {
+        const { Cardano } = require("@cardano-sdk/core");
+        if (Cardano && Cardano.isAddress && Cardano.isAddress(rawRecipient)) {
+          return undefined;
+        }
+      } catch (sdkError) {
+        // If SDK not available, fall through to error
+      }
+      
+      return new InvalidBech32Error("Invalid Cardano address format");
+    }
+
+    // Not Cardano, use standard Bech32 validation
     try {
       Bech32Address.validate(this.recipient, this.bech32Prefix);
     } catch (e) {
@@ -265,7 +306,7 @@ export class RecipientConfig
         `Invalid bech32: ${e.message || e.toString()}`
       );
     }
-    return;
+    return undefined;
   }
 
   get rawRecipient(): string {

@@ -22,15 +22,33 @@ export class InExtensionMessageRequester implements MessageRequester {
       routerId: getKeplrExtensionRouterId(),
     };
 
-    const result = JSONUint8Array.unwrap(
-      await browser.runtime.sendMessage({
-        port,
-        type: msg.type(),
-        msg: JSONUint8Array.wrap(msg),
-      })
-    );
+    console.log("[InExtensionMessageRequester] sendMessage: sending message:", {
+      port,
+      type: msg.type(),
+      route: msg.route()
+    });
+    
+    const rawResult = await browser.runtime.sendMessage({
+      port,
+      type: msg.type(),
+      msg: JSONUint8Array.wrap(msg),
+    });
+    
+    console.log("[InExtensionMessageRequester] sendMessage: raw result:", rawResult);
+    
+    if (!rawResult) {
+      console.error("[InExtensionMessageRequester] sendMessage: raw result is null/undefined");
+      throw new Error("Null result");
+    }
+
+    const result = JSONUint8Array.unwrap(rawResult);
+    console.log("[InExtensionMessageRequester] sendMessage: unwrapped result:", result);
+    console.log("[InExtensionMessageRequester] sendMessage: result type:", typeof result);
+    console.log("[InExtensionMessageRequester] sendMessage: result.return:", result?.return);
+    console.log("[InExtensionMessageRequester] sendMessage: result.error:", result?.error);
 
     if (!result) {
+      console.error("[InExtensionMessageRequester] sendMessage: result is null/undefined");
       throw new Error("Null result");
     }
 

@@ -106,10 +106,20 @@ export const SendPage: FunctionComponent = observer(() => {
       // Prefer not to use the gas config or fee config,
       // because gas simulator can change the gas config and fee config from the result of reaction,
       // and it can make repeated reaction.
+      console.log("[SendPage] simulateGasFn: checking errors:", {
+        amountError: sendConfigs.amountConfig.error?.message || sendConfigs.amountConfig.error?.constructor?.name,
+        recipientError: sendConfigs.recipientConfig.error?.message || sendConfigs.recipientConfig.error?.constructor?.name,
+        recipient: sendConfigs.recipientConfig.recipient,
+        rawRecipient: sendConfigs.recipientConfig.rawRecipient,
+        hasRecipientError: sendConfigs.recipientConfig.error != null,
+        hasAmountError: sendConfigs.amountConfig.error != null
+      });
+      
       if (
         sendConfigs.amountConfig.error != null ||
         sendConfigs.recipientConfig.error != null
       ) {
+        console.error("[SendPage] simulateGasFn: errors found, throwing Not ready to simulate tx");
         throw new Error("Not ready to simulate tx");
       }
 
