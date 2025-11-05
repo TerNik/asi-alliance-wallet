@@ -18,7 +18,7 @@ export const buildTx = async ({
   auxiliaryData,
   walletManager,
 }: Readonly<{
-  output: any; // Accepts both Serialization.TransactionOutput and simple objects
+  output: any; // Accepts Cardano.TxOut (preferred), Serialization.TransactionOutput, or simple objects
   auxiliaryData: any; // Accepts both Serialization.AuxiliaryData and simple objects
   walletManager: CardanoWalletManager;
 }>): Promise<UnwitnessedTx> => {
@@ -30,13 +30,16 @@ export const buildTx = async ({
   // tip$ is BehaviorSubject/ReplaySubject from Cardano SDK, always has current value
   console.log('[buildTx] Getting tip...');
   const tip = await firstValueFrom(walletManager.tip$);
-  console.log('[buildTx] tip received:', tip ? `slot=${tip.slot}` : 'null');
+  console.log('[buildTx] tip received:', tip ? `slot=${(tip as any)?.slot ?? 'unknown'}` : 'null');
   
-  // Add output (lace-style: output.toCore() for Serialization.TransactionOutput)
-  if (output.toCore) {
+  // Add output: prefer Cardano.TxOut directly (modern lace pattern from useInitializeTx.ts:96)
+  // Old lace pattern: Serialization.TransactionOutput → output.toCore()
+  // Modern lace pattern: Cardano.TxOut → txBuilder.addOutput() directly
+  if (output.toCore && typeof output.toCore === 'function') {
+    // Old pattern: Serialization.TransactionOutput with toCore() method
     txBuilder.addOutput(output.toCore());
   } else {
-    // Fallback for simple objects (address + value)
+    // Modern pattern: Cardano.TxOut or simple object with address + value
     txBuilder.addOutput(output);
   }
 

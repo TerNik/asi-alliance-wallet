@@ -71,20 +71,11 @@ export abstract class Router {
     message: any,
     sender: MessageSender
   ): Promise<unknown> {
-    console.log("[Router] handleMessage: starting...");
-    
     if (!this.isInitialized) {
-      console.log("[Router] handleMessage: waiting for initialization...");
       await this._initWaiter;
-      console.log("[Router] handleMessage: initialization complete");
     }
 
     const msg = this.msgRegistry.parseMessage(JSONUint8Array.unwrap(message));
-    console.log("[Router] handleMessage: parsed message:", {
-      type: msg.type(),
-      route: msg.route()
-    });
-    
     const env = this.envProducer(sender, msg.routerMeta ?? {});
 
     for (const guard of this.guards) {
@@ -95,32 +86,18 @@ export abstract class Router {
     msg.validateBasic();
 
     const route = msg.route();
-    console.log("[Router] handleMessage: route:", route);
-    console.log("[Router] handleMessage: registered handlers:", Array.from(this.registeredHandler.keys()));
     
     if (!route) {
-      console.error("[Router] handleMessage: route is null");
       throw new Error("Null router");
     }
     
     const handler = this.registeredHandler.get(route);
-    console.log("[Router] handleMessage: handler found:", !!handler);
     
     if (!handler) {
-      console.error("[Router] handleMessage: handler not found for route:", route);
       throw new Error("Can't get handler");
     }
 
-    console.log("[Router] handleMessage: calling handler...");
     const result = await handler(env, msg);
-    console.log("[Router] handleMessage: handler result:", result);
-    console.log("[Router] handleMessage: result type:", typeof result);
-    console.log("[Router] handleMessage: result is undefined:", result === undefined);
-    console.log("[Router] handleMessage: result is null:", result === null);
-    
-    if (result === undefined) {
-      console.error("[Router] handleMessage: handler returned undefined!");
-    }
     
     return JSONUint8Array.wrap(result);
   }

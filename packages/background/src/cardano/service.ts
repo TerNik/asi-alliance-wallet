@@ -116,7 +116,23 @@ export class CardanoService {
 
     try {
       console.log("[CardanoService] sendAda: Calling keyRing.sendAda...");
-      const txId = await this.keyRing.sendAda(params);
+      console.log("[CardanoService] sendAda: keyRing type:", this.keyRing?.constructor?.name);
+      console.log("[CardanoService] sendAda: keyRing.sendAda exists:", typeof this.keyRing?.sendAda);
+      console.log("[CardanoService] sendAda: keyRing object:", !!this.keyRing);
+      
+      // Wrap in try-catch to catch any synchronous errors
+      let txId: string;
+      try {
+        console.log("[CardanoService] sendAda: About to call keyRing.sendAda with params:", params);
+        txId = await this.keyRing.sendAda(params);
+        console.log("[CardanoService] sendAda: keyRing.sendAda returned:", txId);
+      } catch (syncError: any) {
+        console.error("[CardanoService] sendAda: Error in keyRing.sendAda call:", syncError);
+        console.error("[CardanoService] sendAda: Error message:", syncError?.message);
+        console.error("[CardanoService] sendAda: Error stack:", syncError?.stack);
+        throw syncError;
+      }
+      
       console.log("[CardanoService] sendAda: Transaction successful, txId:", txId);
 
       if (this.notification) {
@@ -128,8 +144,10 @@ export class CardanoService {
       }
 
       return txId;
-    } catch (error) {
+    } catch (error: any) {
       console.error("[CardanoService] sendAda: Error occurred:", error);
+      console.error("[CardanoService] sendAda: Error message:", error?.message);
+      console.error("[CardanoService] sendAda: Error stack:", error?.stack);
       this.processCardanoTxError(error);
       throw error;
     }

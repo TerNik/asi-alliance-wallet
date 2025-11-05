@@ -1,5 +1,6 @@
 import { firstValueFrom } from 'rxjs';
 import { getNetworkConfig, type BlockfrostConfig } from './adapters/env-adapter';
+import type { Cardano } from '@cardano-sdk/core';
 
 export class CardanoWalletManager {
   private wallet: any;
@@ -349,19 +350,22 @@ export class CardanoWalletManager {
         throw new Error(`Invalid recipient address: ${params.to}`);
       }
 
+      // Parse address using Cardano.PaymentAddress (lace pattern from useCollateral.ts:38)
+      // This creates proper address type for txBuilder.addOutput()
       let address: any;
       try {
         address = Cardano.PaymentAddress(params.to);
         if (!address) {
-          throw new Error('Failed to parse address from bech32');
+          throw new Error('Failed to parse payment address');
         }
       } catch (parseError: any) {
         console.error('[CardanoWalletManager] Failed to parse address:', parseError);
         throw new Error(`Invalid Cardano address format: ${parseError?.message || parseError}`);
       }
 
-      // Create output in lace-style format
-      const output = {
+      // Create output in Cardano.TxOut format (lace pattern from useCollateral.ts:36-43)
+      // Use Cardano.PaymentAddress() which returns correct type for txBuilder
+      const output: Cardano.TxOut = {
         address,
         value: { coins: BigInt(params.amount) }
       };
@@ -443,7 +447,7 @@ export class CardanoWalletManager {
     
     try {
       console.log('[CardanoWalletManager] Loading dependencies...');
-      const { Cardano, Serialization } = await import('@cardano-sdk/core');
+      const { Cardano } = await import('@cardano-sdk/core');
       const { buildTx, signAndSubmit } = await import('./api/extension/wallet');
       const { getAuxiliaryData } = await import('./wallet/lib/get-auxiliary-data');
       const { minAdaRequired } = await import('./api/util');
@@ -451,17 +455,6 @@ export class CardanoWalletManager {
       
       if (!params.to || typeof params.to !== 'string') {
         throw new Error(`Invalid recipient address: ${params.to}`);
-      }
-
-      let address: any;
-      try {
-        address = Cardano.PaymentAddress(params.to);
-        if (!address) {
-          throw new Error('Failed to parse address from bech32');
-        }
-      } catch (parseError: any) {
-        console.error('[CardanoWalletManager] Failed to parse address:', parseError);
-        throw new Error(`Invalid Cardano address format: ${parseError?.message || parseError}`);
       }
 
       // Lace-style prepareTx: validate minAdaRequired before buildTx
@@ -482,29 +475,36 @@ export class CardanoWalletManager {
       
       const amountBigInt = BigInt(params.amount);
       
-      // Create TransactionOutput for minAdaRequired validation (lace pattern)
-      const checkOutput = new Serialization.TransactionOutput(
+      // Parse address using Cardano.PaymentAddress (lace pattern from useCollateral.ts:38)
+      // This creates proper address type for txBuilder.addOutput()
+      let address: any;
+      try {
+        address = Cardano.PaymentAddress(params.to);
+        if (!address) {
+          throw new Error('Failed to parse payment address');
+        }
+      } catch (parseError: any) {
+        console.error('[CardanoWalletManager] Failed to parse address:', parseError);
+        throw new Error(`Invalid Cardano address format: ${parseError?.message || parseError}`);
+      }
+      
+      // Create output in Cardano.TxOut format (lace pattern from useCollateral.ts:36-43)
+      // Use Cardano.PaymentAddress() which returns correct type for txBuilder
+      const output: Cardano.TxOut = {
         address,
-        new Serialization.Value(amountBigInt)
-      );
+        value: { coins: amountBigInt }
+      };
       
       // Extract coinsPerUtxoByte from protocolParameters (lace pattern)
       const coinsPerUtxoByte = BigInt(protocolParameters?.coinsPerUtxoByte || protocolParameters?.coinsPerUtxoWord || 4310);
-      const minAda = minAdaRequired(
-        checkOutput,
-        coinsPerUtxoByte
-      );
+      
+      // Validate minAdaRequired using Cardano.TxOut directly (modern lace pattern)
+      const minAda = minAdaRequired(output, coinsPerUtxoByte);
       
       // Validate that amount >= minAdaRequired (lace pattern)
       if (BigInt(minAda) > amountBigInt) {
         throw new Error(`Transaction not possible: amount ${params.amount} is less than minimum required ${minAda} lovelace`);
       }
-
-      // Create output in lace-style format
-      const output = {
-        address,
-        value: { coins: amountBigInt }
-      };
       
       // Create auxiliary data if memo provided
       const auxiliaryData = params.memo 
@@ -525,9 +525,17 @@ export class CardanoWalletManager {
       let inspection: any;
       try {
         inspection = await tx.inspect();
-        console.log('[CardanoWalletManager] Transaction inspection completed');
+        console.log('[CardanoWalletManager] Transaction inspection completed:', inspection ? 'OK' : 'null');
+        if (inspection) {
+          console.log('[CardanoWalletManager] Inspection fee:', inspection.inputSelection?.fee?.toString());
+          console.log('[CardanoWalletManager] Inspection hash:', inspection.hash);
+        }
       } catch (error) {
         console.error('[CardanoWalletManager] Failed to inspect transaction:', error);
+        console.error('[CardanoWalletManager] Error details:', {
+          message: error?.message,
+          stack: error?.stack
+        });
         // Continue without inspection if it fails (non-critical validation)
         // This allows transaction to proceed even if inspection fails
         inspection = null;
@@ -536,18 +544,23 @@ export class CardanoWalletManager {
       // Validate transaction before sending (lace pattern)
       // Only validate if inspection succeeded
       if (inspection && !inspection.inputSelection) {
+        console.error('[CardanoWalletManager] Transaction validation failed: no inputSelection');
         throw new Error('Transaction validation failed: unable to inspect transaction');
       }
       
       // Use lace-style signAndSubmit pattern: tx.sign() → submitTx
       console.log('[CardanoWalletManager] Signing and submitting transaction...');
-      const txId = await signAndSubmit({
-        tx,
-        walletManager: this
-      });
-      console.log('[CardanoWalletManager] Transaction submitted successfully, txId:', txId);
-      
-      return typeof txId === 'string' ? txId : txId.toString();
+      try {
+        const txId = await signAndSubmit({
+          tx,
+          walletManager: this
+        });
+        console.log('[CardanoWalletManager] Transaction submitted successfully, txId:', txId);
+        return typeof txId === 'string' ? txId : txId.toString();
+      } catch (signError) {
+        console.error('[CardanoWalletManager] Failed to sign/submit transaction:', signError);
+        throw signError;
+      }
     } catch (error) {
       console.error("Failed to send ADA transaction:", error);
       if (error?.message?.includes('insufficient')) {

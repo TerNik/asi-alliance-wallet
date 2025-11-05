@@ -41,15 +41,7 @@ export class ExtensionRouter extends Router {
     message: any,
     sender: MessageSender
   ): Promise<Result> | undefined => {
-    console.log("[ExtensionRouter] onMessage received:", {
-      port: message.port,
-      expectedPort: this.port,
-      type: message.type,
-      route: message.msg?.route?.()
-    });
-    
     if (message.port !== this.port) {
-      console.log("[ExtensionRouter] onMessage: port mismatch, ignoring");
       return;
     }
 
@@ -59,11 +51,9 @@ export class ExtensionRouter extends Router {
       message.msg?.routerMeta?.receiverRouterId &&
       message.msg.routerMeta.receiverRouterId !== getKeplrExtensionRouterId()
     ) {
-      console.log("[ExtensionRouter] onMessage: receiverRouterId mismatch, ignoring");
       return;
     }
 
-    console.log("[ExtensionRouter] onMessage: calling onMessageHandler");
     return this.onMessageHandler(message, sender);
   };
 
@@ -71,21 +61,14 @@ export class ExtensionRouter extends Router {
     message: any,
     sender: MessageSender
   ): Promise<Result> {
-    console.log("[ExtensionRouter] onMessageHandler: processing message:", {
-      type: message.type,
-      route: message.msg?.route?.()
-    });
-    
     try {
-      console.log("[ExtensionRouter] onMessageHandler: calling handleMessage...");
       const result = await this.handleMessage(message, sender);
-      console.log("[ExtensionRouter] onMessageHandler: handleMessage result:", result);
       return {
         return: result,
       };
     } catch (e: any) {
       console.error(
-        `[ExtensionRouter] onMessageHandler: Failed to process msg ${message.type}:`,
+        `[ExtensionRouter] Failed to process message ${message.type}:`,
         e?.message || e?.toString(),
         e
       );
