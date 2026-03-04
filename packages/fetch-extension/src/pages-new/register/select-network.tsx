@@ -24,11 +24,18 @@ export const SelectNetwork: React.FC<SelectNetworkProps> = observer(
   }) => {
     const { chainStore } = useStore();
     const mainChainList = chainStore.chainInfosInUI.filter(
-      (chainInfo) => !chainInfo.beta && !chainInfo.features?.includes("evm")
+      (chainInfo) =>
+        !chainInfo.beta &&
+        !chainInfo.features?.includes("evm") &&
+        !chainInfo.features?.includes("asi-chain")
     );
 
     const evmChainList = chainStore.chainInfosInUI.filter((chainInfo) =>
       chainInfo.features?.includes("evm")
+    );
+
+    const asiChainList = chainStore.chainInfosInUI.filter((chainInfo) =>
+      chainInfo.features?.includes("asi-chain")
     );
 
     const cosmosMainList = mainChainList.filter(
@@ -42,7 +49,7 @@ export const SelectNetwork: React.FC<SelectNetworkProps> = observer(
     const cosmosList = chainStore.showTestnet ? mainChainList : cosmosMainList;
     const evmList = chainStore.showTestnet ? evmChainList : evmMainList;
 
-    const networkList = [...cosmosList, ...evmList].map((chain) => ({
+    const networkList = [...cosmosList, ...evmList, ...asiChainList].map((chain) => ({
       id: chain.chainId,
       label: chain.chainName === "fetch" ? "FetchHub" : chain.chainName,
     }));

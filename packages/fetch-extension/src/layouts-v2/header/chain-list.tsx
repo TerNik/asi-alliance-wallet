@@ -34,6 +34,7 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
     const [cosmosSearchTerm, setCosmosSearchTerm] = useState("");
     const [evmSearchTerm, setEvmSearchTerm] = useState("");
     const [cardanoSearchTerm, setCardanoSearchTerm] = useState("");
+    const [asiChainSearchTerm, setASIChainSearchTerm] = useState("");
     const [clickedChain, setClickedChain] = useState(
       chainStore.current.chainId
     );
@@ -47,11 +48,16 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
       (chainInfo: any) =>
         !chainInfo.raw.beta &&
         !chainInfo.raw.features?.includes("evm") &&
-        !chainInfo.raw.features?.includes("cardano")
+        !chainInfo.raw.features?.includes("cardano") &&
+        !chainInfo.raw.features?.includes("asi-chain")
     );
 
     const evmChainList = chainStore.chainInfosInUI.filter((chainInfo: any) =>
       chainInfo.raw.features?.includes("evm")
+    );
+
+    const asiChainList = chainStore.chainInfosInUI.filter((chainInfo: any) =>
+      chainInfo.raw.features?.includes("asi-chain")
     );
 
     const betaChainList = chainStore.chainInfosInUI.filter(
@@ -393,6 +399,113 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
         ),
       },
     ];
+
+    if (true) {
+      tabs.push({
+        id: "ASI Chain",
+        component: (
+          <div>
+            <NotificationOption
+              name="Show testnet"
+              isChecked={chainStore.showTestnet}
+              handleOnChange={() =>
+                chainStore.toggleShowTestnet(!chainStore.showTestnet)
+              }
+              cardStyles={{
+                background: "transparent",
+                padding: "0px",
+                marginBottom: "24px",
+              }}
+            />
+            <SearchBar
+              searchTerm={asiChainSearchTerm}
+              onSearchTermChange={setASIChainSearchTerm}
+              valuesArray={asiChainList}
+              itemsStyleProp={{ height: "100%" }}
+              filterFunction={getFilteredChainValues}
+              emptyContent={<NoResults styles={{ height: "200px" }} />}
+              midElement={
+                <ButtonV2
+                  styleProps={{
+                    height: "48px",
+                    marginTop: "0px",
+                    fontSize: "14px",
+                  }}
+                  onClick={(e: any) => {
+                    e.preventDefault();
+                    analyticsStore.logEvent("manage_networks_click", {
+                      pageName: "Home",
+                    });
+                    navigate("/manage-networks");
+                  }}
+                  text={"Manage networks"}
+                />
+              }
+              renderResult={(chainInfo, index) => (
+                <Card
+                  key={index}
+                  leftImage={
+                    chainInfo.raw.chainSymbolImageUrl !== undefined
+                      ? chainInfo.raw.chainSymbolImageUrl
+                      : chainInfo.raw.chainName
+                      ? chainInfo.raw.chainName[0].toUpperCase()
+                      : ""
+                  }
+                  heading={chainInfo.raw.chainName}
+                  isActive={
+                    chainInfo.raw.chainId === chainStore.current.chainId
+                  }
+                  leftImageStyle={{
+                    backgroundColor: !chainInfo.raw.chainSymbolImageUrl
+                      ? "#dddfdf"
+                      : "transparent",
+                  }}
+                  rightContent={
+                    clickedChain === chainInfo.raw.chainId
+                      ? require("@assets/svg/wireframe/check.svg")
+                      : ""
+                  }
+                  onClick={() => {
+                    setClickedChain(chainInfo.raw.chainId);
+                    let properties = {};
+                    if (chainInfo.raw.chainId !== chainStore.current.chainId) {
+                      properties = {
+                        chainId: chainStore.current.chainId,
+                        chainName: chainStore.current.chainName,
+                        toChainId: chainInfo.raw.chainId,
+                        toChainName: chainInfo.raw.chainName,
+                      };
+                    }
+                    chainStore.selectChain(chainInfo.raw.chainId);
+                    chainStore.saveLastViewChainId();
+                    chatStore.userDetailsStore.resetUser();
+                    proposalStore.resetProposals();
+                    chatStore.messagesStore.resetChatList();
+                    chatStore.messagesStore.setIsChatSubscriptionActive(false);
+                    messageAndGroupListenerUnsubscribe();
+
+                    if (Object.values(properties).length > 0) {
+                      analyticsStore.logEvent("chain_change_click", properties);
+                    }
+                    if (setIsSelectNetOpen) {
+                      setIsSelectNetOpen(false);
+                    }
+                  }}
+                  subheading={
+                    showAddress
+                      ? formatAddress(
+                          accountStore.getAccount(chainInfo.raw.chainId)
+                            .bech32Address
+                        )
+                      : null
+                  }
+                />
+              )}
+            />
+          </div>
+        ),
+      });
+    }
 
     if (true) {
       tabs.push({

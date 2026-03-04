@@ -131,5 +131,12 @@ export function isCardanoChain(
   return chain?.features?.includes("cardano") ?? false;
 }
 
+/** True when the chain has the ASI Chain feature. Must match background: chain.features?.includes("asi-chain"). */
+export function isASIChain(
+  chain: { features?: string[] } | null | undefined
+): boolean {
+  return chain?.features?.includes("asi-chain") ?? false;
+}
+
 /** Re-exported from @keplr-wallet/background (single source of truth for Cardano wallet support). */
 export { walletSupportsCardano } from "@keplr-wallet/background";

@@ -179,7 +179,13 @@ export class ChainsService {
     return {
       chainId: chainInfo.chainId,
       chainName: chainInfo.chainName,
-      networkType: chainInfo.features?.includes("evm") ? "evm" : "cosmos",
+      networkType: chainInfo.features?.includes("asi-chain")
+        ? "asi-chain"
+        : chainInfo.features?.includes("evm")
+        ? "evm"
+        : chainInfo.features?.includes("cardano")
+        ? "cardano"
+        : "cosmos",
       rpcUrl: chainInfo.rpc,
       grpcUrl: chainInfo.grpcUrl,
       restUrl: chainInfo.rest,
@@ -548,6 +554,13 @@ export class ChainsService {
       !features.find((f) => f === "evm")
     ) {
       features.push("evm");
+    }
+
+    if (
+      networkConfig.networkType === "asi-chain" &&
+      !features.find((f) => f === "asi-chain")
+    ) {
+      features.push("asi-chain");
     }
 
     let chainInfo: ChainInfo = {

@@ -22,12 +22,14 @@ export const ManageNetworks: FunctionComponent = observer(() => {
   const [cosmosSearchTerm, setCosmosSearchTerm] = useState("");
   const [evmSearchTerm, setEvmSearchTerm] = useState("");
   const [cardanoSearchTerm, setCardanoSearchTerm] = useState("");
+  const [asiChainSearchTerm, setASIChainSearchTerm] = useState("");
   const [selectedTab, setSelectedTab] = useState("Cosmos");
 
   const mainChainList = chainStore.chainInfos.filter(
     (chainInfo) =>
       !chainInfo.features?.includes("evm") &&
-      !chainInfo.features?.includes("cardano")
+      !chainInfo.features?.includes("cardano") &&
+      !chainInfo.features?.includes("asi-chain")
   );
 
   const evmChainList = chainStore.chainInfos.filter((chainInfo) =>
@@ -36,6 +38,10 @@ export const ManageNetworks: FunctionComponent = observer(() => {
 
   const cardanoChainList = chainStore.chainInfos.filter((chainInfo) =>
     chainInfo.features?.includes("cardano")
+  );
+
+  const asiChainList = chainStore.chainInfos.filter((chainInfo) =>
+    chainInfo.features?.includes("asi-chain")
   );
 
   const disabledChainList = chainStore.disabledChainInfosInUI;
@@ -161,6 +167,67 @@ export const ManageNetworks: FunctionComponent = observer(() => {
 
   if (true) {
     tabs.push({
+      id: "ASI Chain",
+      component: (
+        <div>
+          <SearchBar
+            searchTerm={asiChainSearchTerm}
+            onSearchTermChange={setASIChainSearchTerm}
+            valuesArray={asiChainList}
+            filterFunction={getFilteredChainValues}
+            midElement={
+              <ButtonV2
+                styleProps={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "48px",
+                  fontSize: "14px",
+                  fontWeight: 400,
+                }}
+                onClick={(e: any) => {
+                  e.preventDefault();
+                  navigate("/setting/addASIChainNetwork");
+                }}
+                gradientText={""}
+                text={"Add custom ASI Chain network"}
+              />
+            }
+            emptyContent={<NoResults styles={{ height: "200px" }} />}
+            renderResult={(chainInfo, index) => (
+              <Card
+                key={index}
+                leftImage={
+                  chainInfo.raw.chainSymbolImageUrl !== undefined
+                    ? chainInfo.raw.chainSymbolImageUrl
+                    : chainInfo.chainName
+                    ? chainInfo.chainName[0].toUpperCase()
+                    : ""
+                }
+                leftImageStyle={{
+                  backgroundColor: !chainInfo.raw.chainSymbolImageUrl
+                    ? "#dddfdf"
+                    : "transparent",
+                }}
+                heading={chainInfo.chainName}
+                rightContent={
+                  <ToggleSwitchButton
+                    checked={!disabledChainList.includes(chainInfo)}
+                    onChange={() => {
+                      chainStore.toggleChainInfoInUI(chainInfo.chainId);
+                    }}
+                  />
+                }
+              />
+            )}
+          />
+        </div>
+      ),
+    });
+  }
+
+  if (true) {
+    tabs.push({
       id: "Cardano",
       component: (
         <div>
@@ -215,6 +282,8 @@ export const ManageNetworks: FunctionComponent = observer(() => {
             ? "chain.manage-networks.evm"
             : selectedTab === "Cardano"
             ? "chain.manage-networks.cardano"
+            : selectedTab === "ASI Chain"
+            ? "chain.manage-networks.asi-chain"
             : "chain.manage-networks.cosmos",
       })}
       onBackButton={() => {
