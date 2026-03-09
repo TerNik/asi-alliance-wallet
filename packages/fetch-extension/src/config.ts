@@ -3189,7 +3189,7 @@ const EmbedChainInfos: ChainInfo[] = [
     },
     type: "testnet",
     bip44: {
-      coinType: 118,
+      coinType: 60,
     },
     bech32Config: Bech32Address.defaultBech32Config("asi"),
     currencies: [
@@ -3228,8 +3228,8 @@ const EmbedChainInfos: ChainInfo[] = [
 export const ASIChainInfos: ChainInfo[] = [
   // ASI Chain Dev
   {
-    rpc: "https://rpc-asi-dev.fetch.ai",
-    rest: "https://rest-asi-dev.fetch.ai",
+    rpc: "http://rpc-asi-dev.fetch.ai",
+    rest: "http://rest-asi-dev.fetch.ai",
     chainId: "asi-dev-1",
     chainName: "ASI Chain Dev",
     stakeCurrency: {
@@ -3239,7 +3239,7 @@ export const ASIChainInfos: ChainInfo[] = [
       coinGeckoId: "fetch-ai",
     },
     bip44: {
-      coinType: 118,
+      coinType: 60,
     },
     bech32Config: Bech32Address.defaultBech32Config("asi"),
     type: "testnet",
@@ -3269,8 +3269,8 @@ export const ASIChainInfos: ChainInfo[] = [
   },
   // ASI Chain Devnet
   {
-    rpc: "https://rpc-asi-devnet.fetch.ai",
-    rest: "https://rest-asi-devnet.fetch.ai",
+    rpc: "http://rpc-asi-devnet.fetch.ai",
+    rest: "http://rest-asi-devnet.fetch.ai",
     chainId: "asi-devnet-1",
     chainName: "ASI Chain Devnet",
     stakeCurrency: {
@@ -3280,7 +3280,7 @@ export const ASIChainInfos: ChainInfo[] = [
       coinGeckoId: "fetch-ai",
     },
     bip44: {
-      coinType: 118,
+      coinType: 60,
     },
     bech32Config: Bech32Address.defaultBech32Config("asi"),
     type: "testnet",

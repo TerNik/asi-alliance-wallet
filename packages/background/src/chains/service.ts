@@ -175,26 +175,36 @@ export class ChainsService {
     return chainInfo;
   }
 
+  private resolveNetworkType(
+    features: string[] | undefined
+  ): "asi-chain" | "evm" | "cardano" | "cosmos" {
+    if (features?.includes("asi-chain")) return "asi-chain";
+    if (features?.includes("evm")) return "evm";
+    if (features?.includes("cardano")) return "cardano";
+    return "cosmos";
+  }
+
+  private resolveChainStatus(
+    chainInfo: ChainInfoWithCoreTypes
+  ): "alpha" | "beta" | "production" | undefined {
+    if (chainInfo.status) return chainInfo.status;
+    if (chainInfo.beta) return "beta";
+    return undefined;
+  }
+
   getNetworkConfig(chainInfo: ChainInfoWithCoreTypes): NetworkConfig {
+    const networkType = this.resolveNetworkType(chainInfo.features);
+    const status = this.resolveChainStatus(chainInfo);
+
     return {
       chainId: chainInfo.chainId,
       chainName: chainInfo.chainName,
-      networkType: chainInfo.features?.includes("asi-chain")
-        ? "asi-chain"
-        : chainInfo.features?.includes("evm")
-        ? "evm"
-        : chainInfo.features?.includes("cardano")
-        ? "cardano"
-        : "cosmos",
+      networkType,
       rpcUrl: chainInfo.rpc,
       grpcUrl: chainInfo.grpcUrl,
       restUrl: chainInfo.rest,
       type: chainInfo.type,
-      status: chainInfo.status
-        ? chainInfo.status
-        : chainInfo.beta
-        ? "beta"
-        : undefined,
+      status,
       bip44s: [
         chainInfo.bip44,
         ...(chainInfo.alternativeBIP44s ? chainInfo.alternativeBIP44s : []),

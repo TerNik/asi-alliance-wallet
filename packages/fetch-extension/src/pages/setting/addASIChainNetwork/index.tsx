@@ -1,12 +1,6 @@
 import { HeaderLayout } from "@layouts-v2/header-layout";
 import { Input } from "@components-v2/form/input";
-import React, {
-  FunctionComponent,
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { FunctionComponent, useState } from "react";
 import { useNavigate } from "react-router";
 import { Form } from "reactstrap";
 import { ButtonV2 } from "@components-v2/buttons/button";
@@ -15,13 +9,25 @@ import { useStore } from "../../../stores";
 import { Bech32Address } from "@keplr-wallet/cosmos";
 import axios from "axios";
 import { useLoadingIndicator } from "@components/loading-indicator";
-import { debounce } from "lodash";
 import { INITIAL_ASI_CHAIN_CONFIG } from "./constants";
 import { useNotification } from "@components/notification";
+import { ASI_CHAIN_FEATURE } from "../../../config.asi-chain";
 
 type EndpointCheckResult = {
   valid: boolean;
   reason?: string;
+};
+
+/**
+ * ASI Chain uses HTTP nodes, so we accept both http: and https: URLs.
+ */
+const isUrlValid = (url: string): boolean => {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+  } catch {
+    return false;
+  }
 };
 
 export const AddASIChainNetwork: FunctionComponent = () => {
@@ -31,142 +37,96 @@ export const AddASIChainNetwork: FunctionComponent = () => {
   const { chainStore, analyticsStore } = useStore();
   const [info, setInfo] = useState("");
   const [hasErrors, setHasErrors] = useState(false);
-  const [autoFetchNetworkDetails, setAutoFetchNetworkDetails] = useState(true);
   const [newChainInfo, setNewChainInfo] = useState(INITIAL_ASI_CHAIN_CONFIG);
   const chainList = chainStore.chainInfos;
+
+  // ── Uniqueness checks ─────────────────────────────────────────────────
   const isChainIdExist = chainList.some(
     (chain) => chain.chainId === newChainInfo.chainId
   );
-
   const isChainNameExist = chainList.some(
     (chain) =>
       chain.chainName.toLowerCase() === newChainInfo.chainName.toLowerCase()
   );
-
-  const isRPCExist = chainList.some((chain) => chain.rpc === newChainInfo.rpc);
-
+  const isRPCExist = chainList.some(
+    (chain) => chain.rpc === newChainInfo.rpc
+  );
   const isChainUnique = !isChainNameExist && !isRPCExist && !isChainIdExist;
 
-  const isUrlValid = (url: string) => {
-    try {
-      const parsedUrl = new URL(url);
-      return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
-    } catch {
-      return false;
+  // ── Currency field updater ────────────────────────────────────────────
+  const updateCurrencyFields = (
+    field: "coinMinimalDenom" | "coinDenom" | "coinDecimals",
+    val: string | number
+  ) => {
+    setNewChainInfo((prev) => ({
+      ...prev,
+      stakeCurrency: { ...prev.stakeCurrency, [field]: val },
+      currencies: [{ ...prev.currencies[0], [field]: val }],
+      feeCurrencies: [{ ...prev.feeCurrencies[0], [field]: val }],
+    }));
+  };
+
+  const cleanDecimalInput = (value: string): string => {
+    if (value.trim() === "") return "";
+    const cleaned = value.replace(/\..*$/, "").replace(/^0+(?=\d)/, "");
+    if (!/^\d+$/.test(cleaned)) return "";
+    return Math.min(Number(cleaned), 18).toString();
+  };
+
+  // ── Field handlers (table/map approach) ───────────────────────────────
+  type FieldHandler = (value: string) => void;
+
+  const fieldHandlers: Record<string, FieldHandler> = {
+    chainId: (value) =>
+      setNewChainInfo((prev) => ({ ...prev, chainId: value })),
+
+    chainName: (value) =>
+      setNewChainInfo((prev) => ({ ...prev, chainName: value })),
+
+    rpc: (value) =>
+      setNewChainInfo((prev) => ({ ...prev, rpc: value })),
+
+    rest: (value) =>
+      setNewChainInfo((prev) => ({ ...prev, rest: value })),
+
+    prefix: (value) =>
+      setNewChainInfo((prev) => ({
+        ...prev,
+        bech32Config: Bech32Address.defaultBech32Config(value.trim()),
+      })),
+
+    denom: (value) =>
+      updateCurrencyFields("coinMinimalDenom", value.trim().toLowerCase()),
+
+    symbol: (value) =>
+      updateCurrencyFields("coinDenom", value.trim()),
+
+    decimal: (value) => {
+      const cleaned = cleanDecimalInput(value);
+      const decimals = parseInt(cleaned) || 0;
+      updateCurrencyFields("coinDecimals", decimals);
+    },
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setHasErrors(false);
+    setInfo("");
+    const { name, value } = e.target;
+
+    // Prevent spaces in all fields except chainName and decimal
+    if (name !== "chainName" && name !== "decimal" && /\s/.test(value)) {
+      return;
+    }
+
+    const handler = fieldHandlers[name];
+    if (handler) {
+      handler(value);
+    } else {
+      setNewChainInfo((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  const fetchASIChainInfo = useCallback(
-    async (chainName: string, autoFetch = true) => {
-      if (!chainName || !autoFetch) return;
-      const baseName = chainName
-        .replace(/[-\s]/g, "") // remove all hyphens and spaces
-        ?.toLowerCase();
-
-      loadingIndicator.setIsLoading("chain-details", true);
-
-      try {
-        // fetch from chain-registry
-        const registryUrl = `https://raw.githubusercontent.com/cosmos/chain-registry/master/${baseName}/chain.json`;
-        const { data: registryData } = await axios.get(registryUrl);
-
-        if (!registryData) {
-          setInfo(
-            "Could not fetch the chain information, please fill manually."
-          );
-          return;
-        }
-
-        const chainId = registryData.chain_id;
-        const chainDisplayName =
-          registryData.pretty_name || registryData.chain_name || chainName;
-
-        const rpcUrl = registryData.apis?.rpc?.[0]?.address ?? "";
-        const restUrl = registryData.apis?.rest?.[0]?.address ?? "";
-        const prefix = registryData.bech32_prefix || "cosmos";
-        const logo = registryData.logo_URIs?.png;
-        const denom = registryData.fees?.fee_tokens?.[0]?.denom;
-
-        let coinData = {
-          coinDenom: denom,
-          coinMinimalDenom: denom,
-          coinDecimals: 6,
-        };
-
-        if (restUrl && denom) {
-          try {
-            const denomUrl = `${restUrl.replace(
-              /\/$/,
-              ""
-            )}/cosmos/bank/v1beta1/denoms_metadata/${denom}`;
-            const { data: denomData } = await axios.get(denomUrl);
-
-            const metadata = denomData?.metadata;
-            if (metadata) {
-              const displayUnit =
-                metadata.denom_units?.find(
-                  (unit: any) => unit.denom === metadata.display
-                )?.exponent ?? 6;
-
-              coinData = {
-                coinDenom: metadata.display,
-                coinMinimalDenom: denom,
-                coinDecimals: displayUnit,
-              };
-            }
-          } catch {
-            console.warn("Failed to fetch denom metadata for", chainName);
-          }
-        }
-
-        setNewChainInfo((prev) => ({
-          ...prev,
-          chainId,
-          chainName: chainDisplayName,
-          rpc: rpcUrl,
-          rest: restUrl,
-          bech32Config: Bech32Address.defaultBech32Config(prefix),
-          stakeCurrency: coinData.coinDenom ? coinData : prev.stakeCurrency,
-          currencies: coinData.coinDenom ? [coinData] : prev.currencies,
-          feeCurrencies: [
-            {
-              ...(coinData.coinDenom ? coinData : prev.feeCurrencies[0]),
-              gasPriceStep: prev.feeCurrencies[0].gasPriceStep,
-            },
-          ],
-          chainSymbolImageUrl: logo,
-        }));
-
-        if (!rpcUrl || !restUrl || !denom || !chainId || !prefix) {
-          setInfo(
-            "Fetched partial chain information. Some details are missing, please verify and fill manually."
-          );
-        } else {
-          setInfo("We've fetched information based on provided network name.");
-        }
-      } catch (err) {
-        setNewChainInfo({
-          ...INITIAL_ASI_CHAIN_CONFIG,
-          chainName: chainName,
-        });
-        setInfo("Could not fetch chain details. Please fill manually.");
-      } finally {
-        loadingIndicator.setIsLoading("chain-details", false);
-      }
-    },
-    [loadingIndicator]
-  );
-
-  // debounce the API calls to avoid excessive requests
-  const debouncedFetchASIChainInfo = useMemo(
-    () =>
-      debounce((chainName: string, isUnique: boolean) => {
-        if (chainName && autoFetchNetworkDetails && isUnique)
-          fetchASIChainInfo(chainName);
-      }, 2000),
-    [fetchASIChainInfo, autoFetchNetworkDetails]
-  );
-
+  // ── Endpoint validation ───────────────────────────────────────────────
   const checkEndpointValidity = async (
     url: string,
     type: "rpc" | "rest"
@@ -185,20 +145,22 @@ export const AddASIChainNetwork: FunctionComponent = () => {
       }
 
       const expectedChainId = newChainInfo.chainId;
-
       const network =
         type === "rpc"
           ? res.data?.result?.node_info?.network
           : res.data?.default_node_info?.network ||
             res.data?.node_info?.network;
 
-      if (!network)
-        return { valid: false, reason: "Endpoint did not return network info" };
-
+      if (!network) {
+        return {
+          valid: false,
+          reason: "Endpoint did not return network info",
+        };
+      }
       if (network.trim() !== expectedChainId) {
         return {
           valid: false,
-          reason: `Endpoint network (${network}) does not match the provided chain ID (${expectedChainId})`,
+          reason: `Endpoint network (${network}) does not match chain ID (${expectedChainId})`,
         };
       }
 
@@ -208,98 +170,18 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     }
   };
 
-  useEffect(() => {
-    // Cancel any pending call if chain becomes non-unique
-    if (!isChainNameExist && !isChainIdExist) {
-      debouncedFetchASIChainInfo.cancel();
-    }
-
-    return () => {
-      debouncedFetchASIChainInfo.cancel();
-    };
-  }, [isChainNameExist, isChainIdExist, debouncedFetchASIChainInfo]);
-
-  const cleanDecimalInput = (value: string) => {
-    if (value.trim() === "") return "";
-    value = value.replace(/\..*$/, "");
-    value = value.replace(/^0+(?=\d)/, "");
-    if (!/^\d+$/.test(value)) return "";
-    const num = Math.min(Number(value), 18);
-    return num.toString();
-  };
-
-  const updateCurrencyFields = (
-    field: "coinMinimalDenom" | "coinDenom" | "coinDecimals",
-    val: string | number
-  ) => {
-    setNewChainInfo((prev) => ({
-      ...prev,
-      stakeCurrency: {
-        ...prev.stakeCurrency,
-        [field]: val,
-      },
-      currencies: [
-        {
-          ...prev.currencies[0],
-          [field]: val,
-        },
-      ],
-      feeCurrencies: [
-        {
-          ...prev.feeCurrencies[0],
-          [field]: val,
-        },
-      ],
-    }));
-  };
-
-  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    setHasErrors(false);
-    setInfo("");
-    const { name, value } = e.target;
-
-    // Prevent spaces in all fields except chainName and decimal
-    if (name !== "chainName" && name !== "decimal" && /\s/.test(value)) {
-      return;
-    }
-
-    if (name === "chainId") {
-      setNewChainInfo({ ...newChainInfo, chainId: value });
-    } else if (name === "chainName") {
-      setNewChainInfo({ ...newChainInfo, chainName: value });
-      debouncedFetchASIChainInfo(value, !isChainNameExist && !isChainIdExist);
-    } else if (name === "rpc" || name === "rest") {
-      setNewChainInfo({ ...newChainInfo, [name]: value });
-    } else if (name === "prefix") {
-      setNewChainInfo({
-        ...newChainInfo,
-        bech32Config: Bech32Address.defaultBech32Config(value.trim()),
-      });
-    } else if (name === "denom") {
-      updateCurrencyFields("coinMinimalDenom", value.trim().toLowerCase());
-    } else if (name === "symbol") {
-      updateCurrencyFields("coinDenom", value.trim());
-    } else if (name === "decimal") {
-      const cleanedValue = cleanDecimalInput(value);
-      e.target.value = cleanedValue; // To reflect the change in the input field immediately
-      const decimals = parseInt(cleanedValue);
-      updateCurrencyFields("coinDecimals", decimals);
-    } else {
-      setNewChainInfo({ ...newChainInfo, [name]: value });
-    }
-  };
-
+  // ── Submit ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     try {
       loadingIndicator.setIsLoading("chain-details-adding", true);
-      // checking if the provided endpoint is a valid rest/rpc url
+
       const [rpcResult, restResult] = await Promise.all([
         checkEndpointValidity(newChainInfo.rpc, "rpc"),
         checkEndpointValidity(newChainInfo.rest, "rest"),
       ]);
 
-      const errors = [];
+      const errors: string[] = [];
       if (!rpcResult.valid) errors.push(`RPC: ${rpcResult.reason}`);
       if (!restResult.valid) errors.push(`REST: ${restResult.reason}`);
 
@@ -322,15 +204,13 @@ export const AddASIChainNetwork: FunctionComponent = () => {
         loadingIndicator.setIsLoading("chain-details-adding", false);
         return;
       }
-      chainStore.addCustomChainInfo({
-        ...newChainInfo,
-        features: [
-          ...(newChainInfo.features || []),
-          ...(!newChainInfo.features?.includes("asi-chain")
-            ? ["asi-chain"]
-            : []),
-        ],
-      });
+
+      // Ensure the asi-chain feature flag is always present
+      const features = newChainInfo.features?.includes(ASI_CHAIN_FEATURE)
+        ? newChainInfo.features
+        : [...(newChainInfo.features || []), ASI_CHAIN_FEATURE];
+
+      chainStore.addCustomChainInfo({ ...newChainInfo, features });
       chainStore.selectChain(newChainInfo.chainId);
       loadingIndicator.setIsLoading("chain-details-adding", false);
       analyticsStore.logEvent("add_chain_click", {
@@ -344,6 +224,7 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     }
   };
 
+  // ── Validation ────────────────────────────────────────────────────────
   const isChainNameValid =
     /^[a-z0-9-_ ()]{1,64}$/i.test(newChainInfo.chainName) &&
     (newChainInfo.chainName.match(/\(/g)?.length || 0) ===
@@ -357,7 +238,9 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     newChainInfo.stakeCurrency.coinDecimals <= 18;
   const denom = newChainInfo.stakeCurrency.coinMinimalDenom.trim();
   const symbol = newChainInfo.stakeCurrency.coinDenom.trim();
-  const isValidDenom = /^([A-Za-z]{2,10}|ibc\/[A-Fa-f0-9]{32,64})$/.test(denom);
+  const isValidDenom = /^([A-Za-z]{2,10}|ibc\/[A-Fa-f0-9]{32,64})$/.test(
+    denom
+  );
   const isValidSymbol = /^([a-zA-Z0-9]{2,10}|ibc\/[A-Fa-f0-9]{32,64})$/.test(
     symbol
   );
@@ -377,6 +260,7 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     isChainUnique &&
     hasValidInputs;
 
+  // ── Render ────────────────────────────────────────────────────────────
   return (
     <HeaderLayout
       showBottomMenu={false}
@@ -393,11 +277,6 @@ export const AddASIChainNetwork: FunctionComponent = () => {
           placeholder="ASI Chain"
           type="text"
           name="chainName"
-          text={
-            !loadingIndicator.isLoading
-              ? "The network name may automatically update based on registry data."
-              : ""
-          }
           error={
             isChainNameExist
               ? "Network with this name already exists."
@@ -405,27 +284,12 @@ export const AddASIChainNetwork: FunctionComponent = () => {
               ? "Please enter valid network name. Use only letters, numbers and basic symbols."
               : ""
           }
-          formGroupClassName={
-            loadingIndicator.isLoading("chain-details") ||
-            (!hasErrors && info) ||
-            (!isChainNameValid && newChainInfo.chainName !== "")
-              ? style["formGroupChainName"]
-              : style["formGroup"]
-          }
+          formGroupClassName={style["formGroup"]}
           formFeedbackClassName={style["formFeedback"]}
-          formTextClassName={style["formFeedback"]}
           value={newChainInfo.chainName}
           onChange={handleChange}
           required
         />
-        {loadingIndicator.isLoading("chain-details") && (
-          <p className={style["infoMessage"]}>Fetching chain details...</p>
-        )}
-        {!hasErrors && info && (
-          <p className={style["infoMessage"]} style={{ marginTop: "0px" }}>
-            {info}
-          </p>
-        )}
         <Input
           label="Chain ID"
           type="text"
@@ -448,7 +312,7 @@ export const AddASIChainNetwork: FunctionComponent = () => {
           label="RPC URL"
           type="text"
           name="rpc"
-          placeholder="https://rpc-asi-dev.fetch.ai"
+          placeholder="http://rpc-asi-dev.fetch.ai"
           value={newChainInfo.rpc}
           error={
             newChainInfo.rpc !== "" && !isUrlValid(newChainInfo.rpc)
@@ -466,7 +330,7 @@ export const AddASIChainNetwork: FunctionComponent = () => {
           label="REST URL"
           type="text"
           name="rest"
-          placeholder="https://rest-asi-dev.fetch.ai"
+          placeholder="http://rest-asi-dev.fetch.ai"
           value={newChainInfo.rest}
           error={
             newChainInfo.rest !== "" && !isUrlValid(newChainInfo.rest)
@@ -516,7 +380,9 @@ export const AddASIChainNetwork: FunctionComponent = () => {
           placeholder="TESTASI"
           value={newChainInfo.stakeCurrency.coinDenom}
           error={
-            !isValidSymbol && symbol !== "" ? "Please enter a valid symbol" : ""
+            !isValidSymbol && symbol !== ""
+              ? "Please enter a valid symbol"
+              : ""
           }
           onChange={handleChange}
           formGroupClassName={style["formGroup"]}
@@ -540,28 +406,6 @@ export const AddASIChainNetwork: FunctionComponent = () => {
           onChange={handleChange}
           required
         />
-        <div
-          className={`${style["select-item"]} ${
-            autoFetchNetworkDetails ? style["selected"] : ""
-          }`}
-        >
-          <span className={style["select-item-label"]}>
-            Automatically fetch network details{" "}
-            <em>(may not be available for all networks)</em>
-          </span>
-          <label className={style["select-checkbox-wrapper"]}>
-            <input
-              type="checkbox"
-              onClick={() => {
-                setAutoFetchNetworkDetails(!autoFetchNetworkDetails);
-              }}
-              checked={autoFetchNetworkDetails}
-              readOnly
-              tabIndex={-1}
-            />
-            <span className={style["select-checkbox"]} />
-          </label>
-        </div>
         {hasErrors && info && <p className={style["infoMessage"]}>{info}</p>}
         <ButtonV2
           variant="dark"
@@ -575,8 +419,7 @@ export const AddASIChainNetwork: FunctionComponent = () => {
           }}
           disabled={!isValid}
           text={
-            loadingIndicator.isLoading("chain-details-adding") ||
-            loadingIndicator.isLoading("chain-details")
+            loadingIndicator.isLoading("chain-details-adding")
               ? "Loading..."
               : "Add Chain"
           }
