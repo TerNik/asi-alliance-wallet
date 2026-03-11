@@ -3176,53 +3176,6 @@ const EmbedChainInfos: ChainInfo[] = [
     walletUrlForStaking: "https://browse-dorado.fetch.ai/validators",
     govUrl: "https://explore-dorado.fetch.ai/proposals/",
   },
-  // {
-  //   rpc: "https://rpc-eridanus-1.fetch.ai",
-  //   rest: "https://rest-eridanus-1.fetch.ai",
-  //   chainId: "eridanus-1",
-  //   chainName: "ASI Testnet (Eridanus)",
-  //   stakeCurrency: {
-  //     coinDenom: "TESTASI",
-  //     coinMinimalDenom: "atestasi",
-  //     coinDecimals: 18,
-  //     coinGeckoId: "fetch-ai",
-  //   },
-  //   type: "testnet",
-  //   bip44: {
-  //     coinType: 60,
-  //   },
-  //   bech32Config: Bech32Address.defaultBech32Config("asi"),
-  //   currencies: [
-  //     {
-  //       coinDenom: "TESTASI",
-  //       coinMinimalDenom: "atestasi",
-  //       coinDecimals: 18,
-  //       coinGeckoId: "fetch-ai",
-  //     },
-  //     {
-  //       coinDenom: "MOBX",
-  //       coinMinimalDenom: "nanomobx",
-  //       coinDecimals: 9,
-  //     },
-  //   ],
-  //   feeCurrencies: [
-  //     {
-  //       coinDenom: "TESTASI",
-  //       coinMinimalDenom: "atestasi",
-  //       coinDecimals: 18,
-  //       coinGeckoId: "fetch-ai",
-  //       gasPriceStep: {
-  //         low: 0,
-  //         average: 5000000000,
-  //         high: 6250000000,
-  //       },
-  //     },
-  //   ],
-  //   features: ["cosmwasm"],
-  //   chainSymbolImageUrl: require("./public/assets/png/Black-white-circle.png"),
-  //   walletUrlForStaking: "https://explore-eridanus-1.fetch.ai/validators",
-  //   govUrl: "https://explore-eridanus-1.fetch.ai/proposals/",
-  // },
 ];
 
 export const ASIChainInfos: ChainInfo[] = [
