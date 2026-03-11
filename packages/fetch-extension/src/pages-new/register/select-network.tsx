@@ -10,7 +10,7 @@ import {
   filterEvmChains,
   filterASIChains,
   excludeTestnets,
-} from "@utils/chain-filters";
+} from "@utils/index";
 
 interface SelectNetworkProps {
   className?: string;

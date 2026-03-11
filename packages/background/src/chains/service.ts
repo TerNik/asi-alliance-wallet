@@ -177,7 +177,7 @@ export class ChainsService {
 
   private resolveNetworkType(
     features: string[] | undefined
-  ): "asi-chain" | "evm" | "cardano" | "cosmos" {
+  ): NetworkConfig["networkType"] {
     if (features?.includes("asi-chain")) return "asi-chain";
     if (features?.includes("evm")) return "evm";
     if (features?.includes("cardano")) return "cardano";

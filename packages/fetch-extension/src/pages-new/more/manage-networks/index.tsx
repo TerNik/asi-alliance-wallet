@@ -17,7 +17,7 @@ import {
   filterEvmChains,
   filterASIChains,
   filterCardanoChains,
-} from "@utils/chain-filters";
+} from "@utils/index";
 
 /** Map tab id → localization key for the header title. */
 const TAB_TITLE_KEYS: Record<string, string> = {
@@ -63,21 +63,18 @@ export const ManageNetworks: FunctionComponent = observer(() => {
 
   /** Resolve left image for a chain card. */
   const getChainIcon = useCallback((chainInfo: any) => {
-    if (chainInfo.raw.chainSymbolImageUrl !== undefined) {
+    if (!!chainInfo.raw.chainSymbolImageUrl) {
       return chainInfo.raw.chainSymbolImageUrl;
     }
     return chainInfo.chainName ? chainInfo.chainName[0].toUpperCase() : "";
   }, []);
 
   /** Resolve left image background. */
-  const getChainIconStyle = useCallback(
-    (chainInfo: any) => ({
-      backgroundColor: !chainInfo.raw.chainSymbolImageUrl
-        ? "#dddfdf"
-        : "transparent",
-    }),
-    []
-  );
+  const getChainIconStyle = (chainInfo: any) => ({
+    backgroundColor: !chainInfo.raw.chainSymbolImageUrl
+      ? "#dddfdf"
+      : "transparent",
+  });
 
   /** Shared card renderer for manage-network lists. */
   const renderManageCard = useCallback(
@@ -123,7 +120,7 @@ export const ManageNetworks: FunctionComponent = observer(() => {
 
   // ── Resolve the header title using a map (not nested ternaries) ───────
   const headerTitleKey =
-    TAB_TITLE_KEYS[selectedTab] ?? TAB_TITLE_KEYS.Cosmos;
+    TAB_TITLE_KEYS[selectedTab] ?? TAB_TITLE_KEYS["Cosmos"];
 
   // ── Tab definitions ───────────────────────────────────────────────────
 

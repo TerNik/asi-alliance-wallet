@@ -1,12 +1,14 @@
 import { Bech32Address } from "@keplr-wallet/cosmos";
 import { ChainInfo } from "@keplr-wallet/types";
-import {
-  ASI_COIN_TYPE,
-  ASI_BECH32_PREFIX,
-  ASI_CHAIN_FEATURE,
-  ASI_DEFAULT_CURRENCY,
-  ASI_GAS_PRICE_STEP,
-} from "../../../config.asi-chain";
+
+/** BIP-44 coin type used by ASI Chain (EVM-compatible). */
+const ASI_COIN_TYPE = 60;
+
+/** Bech32 address prefix for ASI Chain addresses. */
+const ASI_BECH32_PREFIX = "asi";
+
+/** Feature flag used to identify ASI Chain networks. */
+export const ASI_CHAIN_FEATURE = "asi-chain";
 
 /**
  * Initial (blank) chain config used by the "Add custom ASI Chain network"
@@ -22,26 +24,30 @@ export const INITIAL_ASI_CHAIN_CONFIG: ChainInfo = {
   bip44: { coinType: ASI_COIN_TYPE },
   bech32Config: Bech32Address.defaultBech32Config(ASI_BECH32_PREFIX),
   stakeCurrency: {
-    coinDenom: ASI_DEFAULT_CURRENCY.coinDenom,
-    coinMinimalDenom: ASI_DEFAULT_CURRENCY.coinMinimalDenom,
-    coinDecimals: ASI_DEFAULT_CURRENCY.coinDecimals,
-    coinGeckoId: ASI_DEFAULT_CURRENCY.coinGeckoId,
+    coinDenom: "TESTASI",
+    coinMinimalDenom: "atestasi",
+    coinDecimals: 18,
+    coinGeckoId: "fetch-ai",
   },
   currencies: [
     {
-      coinDenom: ASI_DEFAULT_CURRENCY.coinDenom,
-      coinMinimalDenom: ASI_DEFAULT_CURRENCY.coinMinimalDenom,
-      coinDecimals: ASI_DEFAULT_CURRENCY.coinDecimals,
-      coinGeckoId: ASI_DEFAULT_CURRENCY.coinGeckoId,
+      coinDenom: "TESTASI",
+      coinMinimalDenom: "atestasi",
+      coinDecimals: 18,
+      coinGeckoId: "fetch-ai",
     },
   ],
   feeCurrencies: [
     {
-      coinDenom: ASI_DEFAULT_CURRENCY.coinDenom,
-      coinMinimalDenom: ASI_DEFAULT_CURRENCY.coinMinimalDenom,
-      coinDecimals: ASI_DEFAULT_CURRENCY.coinDecimals,
-      coinGeckoId: ASI_DEFAULT_CURRENCY.coinGeckoId,
-      gasPriceStep: { ...ASI_GAS_PRICE_STEP },
+      coinDenom: "TESTASI",
+      coinMinimalDenom: "atestasi",
+      coinDecimals: 18,
+      coinGeckoId: "fetch-ai",
+      gasPriceStep: {
+        low: 0,
+        average: 5000000000,
+        high: 6250000000,
+      },
     },
   ],
   features: [ASI_CHAIN_FEATURE],

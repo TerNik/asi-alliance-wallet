@@ -5,7 +5,15 @@ import { TabsPanel } from "@components-v2/tabs/tabsPanel-2";
 import { useConfirm } from "@components/confirm";
 import { messageAndGroupListenerUnsubscribe } from "@graphQL/messages-api";
 import { formatAddress } from "@utils/format";
-import { walletSupportsCardano } from "@utils/index";
+import {
+  walletSupportsCardano,
+  filterCosmosChains,
+  filterEvmChains,
+  filterASIChains,
+  filterBetaChains,
+  filterCardanoChains,
+  excludeTestnets,
+} from "@utils/index";
 import classnames from "classnames";
 import { observer } from "mobx-react-lite";
 import React, { FunctionComponent, useState, useMemo, useCallback } from "react";
@@ -17,14 +25,6 @@ import { getFilteredChainValues } from "@utils/filters";
 import { NotificationOption } from "@components-v2/notification-option";
 import { NoResults } from "@components-v2/no-results";
 import { useLoadingIndicator } from "@components/loading-indicator";
-import {
-  filterCosmosChains,
-  filterEvmChains,
-  filterASIChains,
-  filterBetaChains,
-  filterCardanoChains,
-  excludeTestnets,
-} from "@utils/chain-filters";
 
 // Pre-require assets so users never see blank spaces while SVGs load.
 const checkIcon = require("@assets/svg/wireframe/check.svg");

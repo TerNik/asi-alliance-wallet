@@ -9,9 +9,8 @@ import { useStore } from "../../../stores";
 import { Bech32Address } from "@keplr-wallet/cosmos";
 import axios from "axios";
 import { useLoadingIndicator } from "@components/loading-indicator";
-import { INITIAL_ASI_CHAIN_CONFIG } from "./constants";
+import { INITIAL_ASI_CHAIN_CONFIG, ASI_CHAIN_FEATURE } from "./constants";
 import { useNotification } from "@components/notification";
-import { ASI_CHAIN_FEATURE } from "../../../config.asi-chain";
 
 type EndpointCheckResult = {
   valid: boolean;
