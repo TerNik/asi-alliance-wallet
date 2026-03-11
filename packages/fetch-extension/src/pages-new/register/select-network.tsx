@@ -5,6 +5,12 @@ import { Label } from "reactstrap";
 import { useStore } from "../../stores";
 import style from "./style.module.scss";
 import classNames from "classnames";
+import {
+  filterCosmosChains,
+  filterEvmChains,
+  filterASIChains,
+  excludeTestnets,
+} from "@utils/index";
 
 interface SelectNetworkProps {
   className?: string;
@@ -23,29 +29,25 @@ export const SelectNetwork: React.FC<SelectNetworkProps> = observer(
     onSelectAll,
   }) => {
     const { chainStore } = useStore();
-    const mainChainList = chainStore.chainInfosInUI.filter(
-      (chainInfo) => !chainInfo.beta && !chainInfo.features?.includes("evm")
+    const allChainsInUI = chainStore.chainInfosInUI;
+
+    const mainChainList = filterCosmosChains(allChainsInUI);
+    const evmChainList = filterEvmChains(allChainsInUI);
+    const asiChainList = filterASIChains(allChainsInUI);
+
+    const cosmosList = chainStore.showTestnet
+      ? mainChainList
+      : excludeTestnets(mainChainList);
+    const evmList = chainStore.showTestnet
+      ? evmChainList
+      : excludeTestnets(evmChainList);
+
+    const networkList = [...cosmosList, ...evmList, ...asiChainList].map(
+      (chain) => ({
+        id: chain.chainId,
+        label: chain.chainName === "fetch" ? "FetchHub" : chain.chainName,
+      })
     );
-
-    const evmChainList = chainStore.chainInfosInUI.filter((chainInfo) =>
-      chainInfo.features?.includes("evm")
-    );
-
-    const cosmosMainList = mainChainList.filter(
-      (chainInfo) => chainInfo.raw.type !== "testnet"
-    );
-
-    const evmMainList = evmChainList.filter(
-      (chainInfo) => chainInfo.raw.type !== "testnet"
-    );
-
-    const cosmosList = chainStore.showTestnet ? mainChainList : cosmosMainList;
-    const evmList = chainStore.showTestnet ? evmChainList : evmMainList;
-
-    const networkList = [...cosmosList, ...evmList].map((chain) => ({
-      id: chain.chainId,
-      label: chain.chainName === "fetch" ? "FetchHub" : chain.chainName,
-    }));
 
     useEffect(() => {
       const items = networkList.map((item) => item.id);

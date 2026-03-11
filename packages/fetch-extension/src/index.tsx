@@ -126,6 +126,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAutoLockMonitoring } from "./use-auto-lock-monitoring";
 import { BuySellTokenPage } from "./pages-new/more/token/moonpay";
 import { AddCosmosChain } from "./pages/setting/addCosmosChain";
+import { AddASIChainNetwork } from "./pages/setting/addASIChainNetwork";
 import { useAccountChangeMonitoring } from "./use-account-change-monitoring";
 
 const queryClient = new QueryClient();
@@ -478,6 +479,10 @@ ReactDOM.render(
                           <Route
                             path="/setting/addCosmosChain"
                             element={<AddCosmosChain />}
+                          />
+                          <Route
+                            path="/setting/addASIChainNetwork"
+                            element={<AddASIChainNetwork />}
                           />
                           <Route path="/receive" element={<Receive />} />
                           <Route path="/portfolio" element={<Portfolio />} />

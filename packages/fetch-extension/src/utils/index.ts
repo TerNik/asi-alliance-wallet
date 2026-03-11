@@ -131,5 +131,54 @@ export function isCardanoChain(
   return chain?.features?.includes("cardano") ?? false;
 }
 
+/** True when the chain has the ASI Chain feature. Must match background: chain.features?.includes("asi-chain"). */
+export function isASIChain(
+  chain: { features?: string[] } | null | undefined
+): boolean {
+  return chain?.features?.includes("asi-chain") ?? false;
+}
+
 /** Re-exported from @keplr-wallet/background (single source of truth for Cardano wallet support). */
 export { walletSupportsCardano } from "@keplr-wallet/background";
+
+// ── Centralised chain-list filters ──────────────────────────────────────────
+// Every component that splits chains by network type should use these instead
+// of writing inline `.filter()` calls.
+
+/** Feature flag used to identify ASI Chain networks. */
+export const ASI_CHAIN_FEATURE = "asi-chain";
+
+const hasFeature = (chain: any, feature: string): boolean => {
+  const features = chain.raw?.features ?? chain.features;
+  return features?.includes(feature) ?? false;
+};
+
+/** Cosmos chains – excludes EVM, Cardano, ASI-Chain and beta chains. */
+export const filterCosmosChains = (chains: any[]): any[] =>
+  chains.filter(
+    (c) =>
+      !(c.raw?.beta ?? c.beta) &&
+      !hasFeature(c, "evm") &&
+      !hasFeature(c, "cardano") &&
+      !hasFeature(c, ASI_CHAIN_FEATURE)
+  );
+
+/** EVM chains. */
+export const filterEvmChains = (chains: any[]): any[] =>
+  chains.filter((c) => hasFeature(c, "evm"));
+
+/** Cardano chains. */
+export const filterCardanoChains = (chains: any[]): any[] =>
+  chains.filter((c) => hasFeature(c, "cardano"));
+
+/** ASI Chain networks. */
+export const filterASIChains = (chains: any[]): any[] =>
+  chains.filter((c) => hasFeature(c, ASI_CHAIN_FEATURE));
+
+/** Beta chains. */
+export const filterBetaChains = (chains: any[]): any[] =>
+  chains.filter((c) => c.raw?.beta ?? c.beta);
+
+/** Exclude testnet chains. */
+export const excludeTestnets = (chains: any[]): any[] =>
+  chains.filter((c) => (c.raw?.type ?? c.type) !== "testnet");
