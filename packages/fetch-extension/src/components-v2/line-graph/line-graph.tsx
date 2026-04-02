@@ -86,7 +86,8 @@ export const LineGraph: React.FC<LineGraphProps> = ({
           const firstValue = newPrices[0].price || 0;
           const lastValue = newPrices[newPrices.length - 1].price || 0;
           const diff = lastValue - firstValue;
-          const percentageDiff = (diff / lastValue) * 100;
+          const baseValue = firstValue > 0 ? firstValue : 0;
+          const percentageDiff = baseValue > 0 ? (diff / baseValue) * 100 : 0;
           let time = "";
           if (duration === 1) time = "TODAY";
           else if (duration === 7) time = "1 WEEK";
