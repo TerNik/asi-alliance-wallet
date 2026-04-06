@@ -38,7 +38,7 @@ import classNames from "classnames";
 import { getNextDefaultAccountName, validateWalletName } from "@utils/index";
 import { InExtensionMessageRequester } from "@keplr-wallet/router-extension";
 import { BACKGROUND_PORT } from "@keplr-wallet/router";
-import { RefreshAccountList } from "@keplr-wallet/background";
+import { RefreshAccountList, GetASIChainAddressMsg } from "@keplr-wallet/background";
 
 export const TypeNewMnemonic = "new-mnemonic";
 
@@ -211,6 +211,28 @@ export const GenerateMnemonicModePage: React.FC<GenerateMnemonicModePageProps> =
       const accountList = keyRingStore.multiKeyStoreInfo;
       const defaultAccountName = getNextDefaultAccountName(accountList);
       const [newAccountName, setNewAccountName] = useState(defaultAccountName);
+      const [asiChainAddress, setAsiChainAddress] = useState("");
+
+      useEffect(() => {
+        if (newMnemonicConfig.mnemonic) {
+          new InExtensionMessageRequester()
+            .sendMessage(
+              BACKGROUND_PORT,
+              new GetASIChainAddressMsg(
+                newMnemonicConfig.mnemonic,
+                bip44Option.bip44HDPath.addressIndex
+              )
+            )
+            .then((result: { address: string }) => {
+              setAsiChainAddress(result.address ?? "");
+            })
+            .catch((err) => {
+              console.error("Failed to derive ASI Chain address:", err);
+            });
+        } else {
+          setAsiChainAddress("");
+        }
+      }, [bip44Option.bip44HDPath.addressIndex, newMnemonicConfig.mnemonic]);
 
       const {
         register,
@@ -310,6 +332,37 @@ export const GenerateMnemonicModePage: React.FC<GenerateMnemonicModePageProps> =
                   alt=""
                 />
               </div>
+              {asiChainAddress && (
+                <div
+                  style={{
+                    background: "rgba(0,0,0,0.05)",
+                    border: "none",
+                    borderRadius: "12px",
+                    padding: "12px 16px",
+                    marginBottom: "16px",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "rgba(0,0,0,0.6)",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    ASI Chain Metacycle Address
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      color: "rgba(0,0,0,0.85)",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {asiChainAddress}
+                  </div>
+                </div>
+              )}
               <label className={style["checkbox"]}>
                 <input
                   type="checkbox"

@@ -5,6 +5,7 @@ import {
 } from "./keyring";
 import { Key, KeyStoreMetaKnown } from "./types";
 import { CardanoService } from "../cardano/service";
+import { ASIChainService } from "../asi-chain/service";
 
 import {
   Bech32Address,
@@ -65,14 +66,17 @@ export class KeyRingService {
   public chainsService!: ChainsService;
   public permissionService!: PermissionService;
   private cardanoService: CardanoService;
+  private asiChainService: ASIChainService;
 
   constructor(
     protected readonly kvStore: KVStore,
     protected readonly embedChainInfos: ChainInfo[],
     protected readonly crypto: CommonCrypto,
-    cardanoService: CardanoService
+    cardanoService: CardanoService,
+    asiChainService?: ASIChainService
   ) {
     this.cardanoService = cardanoService;
+    this.asiChainService = asiChainService ?? new ASIChainService();
   }
 
   public getKeyRing(): KeyRing {
@@ -356,11 +360,18 @@ export class KeyRingService {
         return {};
       });
 
+    const asiChainMeta = await this.asiChainService
+      .createMetaFromMnemonic(mnemonic, bip44HDPath.addressIndex)
+      .catch((error) => {
+        console.error("Failed to create ASI Chain meta:", error);
+        return {};
+      });
+
     const keyStoreInfo = await this.keyRing.createMnemonicKey(
       kdf,
       mnemonic,
       password,
-      { ...meta, ...cardanoMeta },
+      { ...meta, ...cardanoMeta, ...asiChainMeta },
       bip44HDPath,
       "secp256k1"
     );
@@ -377,11 +388,25 @@ export class KeyRingService {
     status: KeyRingStatus;
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
+    let asiChainMeta: Record<string, string> = {};
+    try {
+      asiChainMeta = {
+        asiChainAddress: await this.asiChainService.deriveAddressFromPrivateKey(
+          privateKey
+        ),
+      };
+    } catch (error) {
+      console.error(
+        "Failed to derive ASI Chain address from private key:",
+        error
+      );
+    }
+
     return await this.keyRing.createPrivateKey(
       kdf,
       privateKey,
       password,
-      meta,
+      { ...meta, ...asiChainMeta },
       KeyCurves.secp256k1
     );
   }
@@ -1163,10 +1188,17 @@ Salt: ${salt}`;
   ): Promise<{
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
+    const asiChainMeta = await this.asiChainService
+      .createMetaFromMnemonic(mnemonic, bip44HDPath.addressIndex)
+      .catch((error) => {
+        console.error("Failed to create ASI Chain meta:", error);
+        return {};
+      });
+
     const result = await this.keyRing.addMnemonicKey(
       kdf,
       mnemonic,
-      meta,
+      { ...meta, ...asiChainMeta },
       bip44HDPath,
       curve
     );
@@ -1182,10 +1214,24 @@ Salt: ${salt}`;
   ): Promise<{
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
+    let asiChainMeta: Record<string, string> = {};
+    try {
+      asiChainMeta = {
+        asiChainAddress: await this.asiChainService.deriveAddressFromPrivateKey(
+          privateKey
+        ),
+      };
+    } catch (error) {
+      console.error(
+        "Failed to derive ASI Chain address from private key:",
+        error
+      );
+    }
+
     const result = await this.keyRing.addPrivateKey(
       kdf,
       privateKey,
-      meta,
+      { ...meta, ...asiChainMeta },
       curve
     );
 
