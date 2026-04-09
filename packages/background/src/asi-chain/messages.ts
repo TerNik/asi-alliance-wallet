@@ -1,5 +1,5 @@
 import { Message } from "@keplr-wallet/router";
-import { ROUTE } from "./constants";
+import { ASI_CHAIN_ROUTE } from "./constants";
 
 export class GetASIChainAddressMsg extends Message<{
   address: string;
@@ -19,7 +19,7 @@ export class GetASIChainAddressMsg extends Message<{
   }
 
   route(): string {
-    return ROUTE;
+    return ASI_CHAIN_ROUTE;
   }
 
   type(): string {
@@ -45,7 +45,7 @@ export class ValidateASIMnemonicMsg extends Message<{
   }
 
   route(): string {
-    return ROUTE;
+    return ASI_CHAIN_ROUTE;
   }
 
   type(): string {

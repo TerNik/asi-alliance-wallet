@@ -1,18 +1,32 @@
-import { WalletsService, MnemonicService } from "@asichain/asi-wallet-sdk";
+import {
+  ASI_COIN_TYPE,
+  KeyDerivationService,
+  KeysManager,
+  MnemonicService,
+  WalletsService,
+} from "@asichain/asi-wallet-sdk";
 
 export class ASIChainService {
   async createMetaFromMnemonic(
     mnemonic: string,
     index: number = 0
   ): Promise<Record<string, string>> {
+
+    let privateKey: Uint8Array | undefined;
     try {
-      const walletMeta = await WalletsService.createWalletFromMnemonic(
-        mnemonic,
-        index
-      );
+      const words = MnemonicService.mnemonicToWordArray(mnemonic);
+      privateKey = await KeyDerivationService.deriveKeyFromMnemonic(words, {
+        coinType: ASI_COIN_TYPE,
+        account: 0,
+        change: 0,
+        index,
+      });
+
+      const publicKey = KeysManager.getPublicKeyFromPrivateKey(privateKey);
+      const address = WalletsService.deriveAddressFromPublicKey(publicKey);
 
       return {
-        asiChainAddress: walletMeta.address,
+        asiChainAddress: address,
       };
     } catch (error) {
       console.error(
@@ -20,6 +34,8 @@ export class ASIChainService {
         error
       );
       return {};
+    } finally {
+      privateKey?.fill(0);
     }
   }
 

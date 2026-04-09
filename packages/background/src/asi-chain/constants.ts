@@ -1,1 +1,1 @@
-export const ROUTE = "background-asi-chain";
+export const ASI_CHAIN_ROUTE = "background-asi-chain";
