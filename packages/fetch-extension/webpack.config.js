@@ -60,11 +60,6 @@ const commonResolve = () => ({
     "@hooks": path.resolve(__dirname, "src/hooks"),
     "@assets": path.resolve(__dirname, "src/public/assets"),
     "@utils": path.resolve(__dirname, "src/utils"),
-    // Force the ESM build in browser bundles (the CJS build can leave raw `require()` calls behind).
-    "@asichain/asi-wallet-sdk": path.resolve(
-      __dirname,
-      "../../node_modules/@asichain/asi-wallet-sdk/dist/index.esm.js"
-    ),
     crypto: require.resolve("crypto-browserify"),
   },
 });
@@ -233,12 +228,6 @@ const extensionConfig = () => {
     },
     module: {
       rules: [
-        // @asichain/asi-wallet-sdk is published with `"type": "module"` but its CJS build is `*.cjs.js`.
-        // Webpack may treat it as ESM and leave `require()` calls unbundled, which breaks in MV3 service workers.
-        {
-          test: /node_modules[\\/]@asichain[\\/]asi-wallet-sdk[\\/]dist[\\/]index\\.cjs\\.js$/,
-          type: "javascript/auto",
-        },
         sassRule,
         tsRule,
         fileRule,

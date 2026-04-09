@@ -332,37 +332,14 @@ export const GenerateMnemonicModePage: React.FC<GenerateMnemonicModePageProps> =
                   alt=""
                 />
               </div>
-              {asiChainAddress && (
-                <div
-                  style={{
-                    background: "rgba(0,0,0,0.05)",
-                    border: "none",
-                    borderRadius: "12px",
-                    padding: "12px 16px",
-                    marginBottom: "16px",
-                    wordBreak: "break-all",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "12px",
-                      color: "rgba(0,0,0,0.6)",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    ASI Chain Metacycle Address
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      color: "rgba(0,0,0,0.85)",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {asiChainAddress}
-                  </div>
+              <div className={style["asiChainAddressContainer"]}>
+                <div className={style["asiChainAddressLabel"]}>
+                  ASI Chain Metacycle Address
                 </div>
-              )}
+                <div className={style["asiChainAddressValue"]}>
+                  {asiChainAddress || "Deriving address..."}
+                </div>
+              </div>
               <label className={style["checkbox"]}>
                 <input
                   type="checkbox"

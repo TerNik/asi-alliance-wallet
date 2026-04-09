@@ -1,9 +1,6 @@
 import { Message } from "@keplr-wallet/router";
 import { ROUTE } from "./constants";
 
-/**
- * Message to request the ASI Chain metacycle address for the current account.
- */
 export class GetASIChainAddressMsg extends Message<{
   address: string;
 }> {
@@ -30,9 +27,6 @@ export class GetASIChainAddressMsg extends Message<{
   }
 }
 
-/**
- * Message to validate a mnemonic using the ASI Wallet SDK.
- */
 export class ValidateASIMnemonicMsg extends Message<{
   isValid: boolean;
 }> {

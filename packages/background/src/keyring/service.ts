@@ -388,25 +388,11 @@ export class KeyRingService {
     status: KeyRingStatus;
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
-    let asiChainMeta: Record<string, string> = {};
-    try {
-      asiChainMeta = {
-        asiChainAddress: await this.asiChainService.deriveAddressFromPrivateKey(
-          privateKey
-        ),
-      };
-    } catch (error) {
-      console.error(
-        "Failed to derive ASI Chain address from private key:",
-        error
-      );
-    }
-
     return await this.keyRing.createPrivateKey(
       kdf,
       privateKey,
       password,
-      { ...meta, ...asiChainMeta },
+      meta,
       KeyCurves.secp256k1
     );
   }
@@ -1214,24 +1200,10 @@ Salt: ${salt}`;
   ): Promise<{
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
-    let asiChainMeta: Record<string, string> = {};
-    try {
-      asiChainMeta = {
-        asiChainAddress: await this.asiChainService.deriveAddressFromPrivateKey(
-          privateKey
-        ),
-      };
-    } catch (error) {
-      console.error(
-        "Failed to derive ASI Chain address from private key:",
-        error
-      );
-    }
-
     const result = await this.keyRing.addPrivateKey(
       kdf,
       privateKey,
-      { ...meta, ...asiChainMeta },
+      meta,
       curve
     );
 

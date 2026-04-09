@@ -2,7 +2,7 @@ import { Env, Handler, InternalHandler, Message } from "@keplr-wallet/router";
 import { ASIChainService } from "./service";
 import { GetASIChainAddressMsg, ValidateASIMnemonicMsg } from "./messages";
 
-export const getHandler: (service: ASIChainService) => Handler = (service) => {
+export const createHandler: (service: ASIChainService) => Handler = (service) => {
   return (env: Env, msg: Message<unknown>) => {
     switch (msg.constructor) {
       case GetASIChainAddressMsg:
@@ -31,7 +31,7 @@ const handleValidateASIMnemonic: (
 ) => InternalHandler<ValidateASIMnemonicMsg> = (service) => {
   return async (_env, msg) => {
     return {
-      isValid: service.validateMnemonic(msg.mnemonic),
+      isValid: await service.validateMnemonic(msg.mnemonic),
     };
   };
 };
