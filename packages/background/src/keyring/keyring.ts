@@ -1165,6 +1165,65 @@ export class KeyRing {
     return this.getMultiKeyStoreInfo();
   }
 
+  /**
+   * Merge additional fields into the meta of the keystore at the given index
+   * without touching its encrypted payload. Used for lazy migrations such as
+   * persisting the derived ASI Chain Metacycle address on first unlock.
+   */
+  public async updateKeyStoreMeta(
+    index: number,
+    metaPatch: Record<string, string>
+  ): Promise<void> {
+    if (this.status !== KeyRingStatus.UNLOCKED) {
+      throw new Error("Key ring is not unlocked");
+    }
+
+    const keyStore = this.multiKeyStore[index];
+    if (!keyStore) {
+      throw new Error("Key store is empty");
+    }
+
+    keyStore.meta = { ...keyStore.meta, ...metaPatch };
+
+    if (
+      this.keyStore &&
+      KeyRing.getKeyStoreId(this.keyStore) === KeyRing.getKeyStoreId(keyStore)
+    ) {
+      this.keyStore = keyStore;
+    }
+
+    await this.save();
+  }
+
+  /**
+   * Decrypt the mnemonic stored in the keystore at the given index using the
+   * currently unlocked in-memory password. Only valid while the keyring is
+   * UNLOCKED. The returned string should be used synchronously and discarded
+   * by the caller so it doesn't linger in memory.
+   */
+  public async decryptMnemonicAt(index: number): Promise<string | undefined> {
+    if (this.status !== KeyRingStatus.UNLOCKED || !this.password) {
+      return undefined;
+    }
+
+    const keyStore = this.multiKeyStore[index];
+    if (!keyStore || keyStore.type !== "mnemonic") {
+      return undefined;
+    }
+
+    try {
+      return Buffer.from(
+        await Crypto.decrypt(this.crypto, keyStore, this.password)
+      ).toString();
+    } catch (e) {
+      console.error(
+        `[KeyRing] Failed to decrypt mnemonic at index ${index}:`,
+        e
+      );
+      return undefined;
+    }
+  }
+
   private loadKey(coinType: number, useEthereumAddress: boolean = false): Key {
     if (this.status !== KeyRingStatus.UNLOCKED) {
       throw new Error("Key ring is not unlocked");

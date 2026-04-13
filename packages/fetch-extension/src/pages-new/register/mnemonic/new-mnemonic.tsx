@@ -38,7 +38,7 @@ import classNames from "classnames";
 import { getNextDefaultAccountName, validateWalletName } from "@utils/index";
 import { InExtensionMessageRequester } from "@keplr-wallet/router-extension";
 import { BACKGROUND_PORT } from "@keplr-wallet/router";
-import { RefreshAccountList, GetASIChainAddressMsg } from "@keplr-wallet/background";
+import { RefreshAccountList } from "@keplr-wallet/background";
 
 export const TypeNewMnemonic = "new-mnemonic";
 
@@ -211,28 +211,6 @@ export const GenerateMnemonicModePage: React.FC<GenerateMnemonicModePageProps> =
       const accountList = keyRingStore.multiKeyStoreInfo;
       const defaultAccountName = getNextDefaultAccountName(accountList);
       const [newAccountName, setNewAccountName] = useState(defaultAccountName);
-      const [asiChainAddress, setAsiChainAddress] = useState("");
-
-      useEffect(() => {
-        if (newMnemonicConfig.mnemonic) {
-          new InExtensionMessageRequester()
-            .sendMessage(
-              BACKGROUND_PORT,
-              new GetASIChainAddressMsg(
-                newMnemonicConfig.mnemonic,
-                bip44Option.bip44HDPath.addressIndex
-              )
-            )
-            .then((result: { address: string }) => {
-              setAsiChainAddress(result.address ?? "");
-            })
-            .catch((err) => {
-              console.error("Failed to derive ASI Chain address:", err);
-            });
-        } else {
-          setAsiChainAddress("");
-        }
-      }, [bip44Option.bip44HDPath.addressIndex, newMnemonicConfig.mnemonic]);
 
       const {
         register,
@@ -331,14 +309,6 @@ export const GenerateMnemonicModePage: React.FC<GenerateMnemonicModePageProps> =
                   src={require("@assets/svg/wireframe/copy.svg")}
                   alt=""
                 />
-              </div>
-              <div className={style["asiChainAddressContainer"]}>
-                <div className={style["asiChainAddressLabel"]}>
-                  ASI Chain Metacycle Address
-                </div>
-                <div className={style["asiChainAddressValue"]}>
-                  {asiChainAddress || "Deriving address..."}
-                </div>
               </div>
               <label className={style["checkbox"]}>
                 <input

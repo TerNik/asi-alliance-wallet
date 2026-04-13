@@ -83,6 +83,8 @@ import {
   normalizeCacheData,
 } from "../utils/cache-validation";
 import { isCardanoChain, walletSupportsCardano } from "../utils";
+import { ASIBalanceStore } from "./asi-balance";
+import { isASIChain } from "@keplr-wallet/asi-chain";
 
 export class RootStore {
   public readonly uiConfigStore: UIConfigStore;
@@ -129,6 +131,7 @@ export class RootStore {
   >;
   public readonly priceStore: CoinGeckoPriceStore;
   public readonly tokensStore: TokensStore<ChainInfoWithCoreTypes>;
+  public readonly asiBalanceStore: ASIBalanceStore;
 
   protected readonly ibcCurrencyRegistrar: IBCCurrencyRegsitrar<ChainInfoWithCoreTypes>;
   protected readonly gravityBridgeCurrencyRegistrar: GravityBridgeCurrencyRegsitrar<ChainInfoWithCoreTypes>;
@@ -678,6 +681,34 @@ export class RootStore {
       new InExtensionMessageRequester(),
       this.interactionStore
     );
+
+    this.asiBalanceStore = new ASIBalanceStore();
+
+    autorun(() => {
+      if (this.keyRingStore.status !== KeyRingStatus.UNLOCKED) {
+        this.asiBalanceStore.stop();
+        return;
+      }
+
+      const chainInfo = this.chainStore.current;
+      if (!isASIChain(chainInfo)) {
+        this.asiBalanceStore.stop();
+        return;
+      }
+
+      const selectedKeyStore = this.keyRingStore.multiKeyStoreInfo.find(
+        (ks) => ks.selected
+      );
+      const asiChainAddress =
+        selectedKeyStore?.meta?.["asiChainAddress"] || "";
+
+      if (!asiChainAddress) {
+        this.asiBalanceStore.stop();
+        return;
+      }
+
+      this.asiBalanceStore.setActive(chainInfo, asiChainAddress);
+    });
 
     this.ibcCurrencyRegistrar =
       new IBCCurrencyRegsitrar<ChainInfoWithCoreTypes>(

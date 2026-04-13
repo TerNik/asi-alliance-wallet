@@ -5,13 +5,13 @@ import {
   MnemonicService,
   WalletsService,
 } from "@asichain/asi-wallet-sdk";
+import { ASI_CHAIN_ADDRESS_META_KEY } from "./constants";
 
 export class ASIChainService {
   async createMetaFromMnemonic(
     mnemonic: string,
     index: number = 0
   ): Promise<Record<string, string>> {
-
     let privateKey: Uint8Array | undefined;
     try {
       const words = MnemonicService.mnemonicToWordArray(mnemonic);
@@ -26,7 +26,7 @@ export class ASIChainService {
       const address = WalletsService.deriveAddressFromPublicKey(publicKey);
 
       return {
-        asiChainAddress: address,
+        [ASI_CHAIN_ADDRESS_META_KEY]: address,
       };
     } catch (error) {
       console.error(
@@ -37,13 +37,5 @@ export class ASIChainService {
     } finally {
       privateKey?.fill(0);
     }
-  }
-
-  generateMnemonic(strength: 128 | 256 = 128): string {
-    return MnemonicService.generateMnemonic(strength);
-  }
-
-  validateMnemonic(mnemonic: string): boolean {
-    return MnemonicService.isMnemonicValid(mnemonic);
   }
 }

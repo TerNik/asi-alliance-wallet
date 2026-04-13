@@ -5,7 +5,7 @@ import {
 } from "./keyring";
 import { Key, KeyStoreMetaKnown } from "./types";
 import { CardanoService } from "../cardano/service";
-import { ASIChainService } from "../asi-chain/service";
+import { ASIChainService } from "@keplr-wallet/asi-chain";
 
 import {
   Bech32Address,
@@ -467,7 +467,54 @@ export class KeyRingService {
       }
     }
 
+    this.backfillASIChainAddressesInBackground();
+
     return this.keyRing.status;
+  }
+
+  private backfillASIChainAddressesInBackground(): void {
+    void (async () => {
+      try {
+        const infos = this.keyRing.getMultiKeyStoreInfo();
+        for (let i = 0; i < infos.length; i++) {
+          const info = infos[i];
+          if (info.type !== "mnemonic") continue;
+          if (info.meta && info.meta["asiChainAddress"]) continue;
+
+          const mnemonic = await this.keyRing.decryptMnemonicAt(i);
+          if (!mnemonic) continue;
+
+          const addressIndex = info.bip44HDPath?.addressIndex ?? 0;
+          const meta = await this.asiChainService
+            .createMetaFromMnemonic(mnemonic, addressIndex)
+            .catch((error) => {
+              console.error(
+                "[KeyRingService] Failed to backfill ASI Chain meta:",
+                error
+              );
+              return {} as Record<string, string>;
+            });
+
+          if (meta["asiChainAddress"]) {
+            try {
+              await this.keyRing.updateKeyStoreMeta(i, {
+                asiChainAddress: meta["asiChainAddress"],
+              });
+            } catch (e) {
+              console.error(
+                "[KeyRingService] Failed to persist ASI Chain meta:",
+                e
+              );
+            }
+          }
+        }
+      } catch (e) {
+        console.error(
+          "[KeyRingService] ASI Chain address backfill failed:",
+          e
+        );
+      }
+    })();
   }
 
   async getKey(chainId: string): Promise<Key> {

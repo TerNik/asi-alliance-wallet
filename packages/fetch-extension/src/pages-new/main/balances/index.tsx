@@ -17,6 +17,7 @@ import {
 } from "@utils/moonpay-currency";
 import { moonpaySupportedTokensByChainId } from "../../more/token/moonpay/utils";
 import { addressCacheStore } from "../../../utils/address-cache-store";
+import { isASIChain as isASIChainPredicate } from "@keplr-wallet/asi-chain";
 
 interface Props {
   tokenState: any;
@@ -31,6 +32,7 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
     keyRingStore,
     activityStore,
     analyticsStore,
+    asiBalanceStore,
   } = useStore();
   const navigate = useNavigate();
   const language = useLanguage();
@@ -43,21 +45,27 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
 
   const accountInfo = accountStore.getAccount(current.chainId);
 
-  const selectedWalletId =
-    keyRingStore.multiKeyStoreInfo.find((ks) => ks.selected)?.meta?.["__id__"] ||
-    "";
+  const selectedKeyStore = keyRingStore.multiKeyStoreInfo.find(
+    (ks) => ks.selected
+  );
+  const selectedWalletId = selectedKeyStore?.meta?.["__id__"] || "";
   const cachedSelectedAddress =
     selectedWalletId && current.chainId
       ? addressCacheStore.getCache(current.chainId)[selectedWalletId] || ""
       : "";
-  const effectiveAddress =
-    accountInfo.walletStatus === WalletStatus.Loaded
-      ? accountInfo.bech32Address
-      : cachedSelectedAddress;
+  const isASIChain = isASIChainPredicate(current);
+  const asiChainAddress =
+    (isASIChain && selectedKeyStore?.meta?.["asiChainAddress"]) || "";
+  const effectiveAddress = isASIChain
+    ? asiChainAddress
+    : accountInfo.walletStatus === WalletStatus.Loaded
+    ? accountInfo.bech32Address
+    : cachedSelectedAddress;
 
-  const balanceQuery = effectiveAddress
-    ? queries.queryBalances.getQueryBech32Address(effectiveAddress)
-    : undefined;
+  const balanceQuery =
+    !isASIChain && effectiveAddress
+      ? queries.queryBalances.getQueryBech32Address(effectiveAddress)
+      : undefined;
   const balanceStakableQuery = balanceQuery ? balanceQuery.stakable : undefined;
 
   const isNoble =
@@ -70,7 +78,22 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
   const currency = current.feeCurrencies?.[0];
   const zero = currency ? new CoinPretty(currency, new Int(0)).ready(false) : undefined;
 
+  const asiBalanceEntry =
+    isASIChain && asiChainAddress
+      ? asiBalanceStore.getBalance(current, asiChainAddress)
+      : undefined;
+
   const stakable = (() => {
+    if (isASIChain) {
+      return (
+        asiBalanceEntry?.balance ??
+        zero ??
+        new CoinPretty(
+          { coinDecimals: 0, coinDenom: "", coinMinimalDenom: "" } as any,
+          new Int(0)
+        ).ready(false)
+      );
+    }
     if (!effectiveAddress || !balanceQuery || !balanceStakableQuery) {
       return zero ?? new CoinPretty({ coinDecimals: 0, coinDenom: "", coinMinimalDenom: "" } as any, new Int(0)).ready(false);
     }
@@ -80,13 +103,13 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
     return balanceStakableQuery.balance;
   })();
 
-  const delegated = effectiveAddress
+  const delegated = !isASIChain && effectiveAddress
     ? queries.cosmos.queryDelegations
         .getQueryBech32Address(effectiveAddress)
         .total.upperCase(true)
     : zero ?? new CoinPretty({ coinDecimals: 0, coinDenom: "", coinMinimalDenom: "" } as any, new Int(0)).ready(false);
 
-  const unbonding = effectiveAddress
+  const unbonding = !isASIChain && effectiveAddress
     ? queries.cosmos.queryUnbondingDelegations
         .getQueryBech32Address(effectiveAddress)
         .total.upperCase(true)
@@ -113,7 +136,10 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
     },
     refetchInterval: 3600 * 1000,
     refetchOnMount: false,
-    enabled: !current?.features?.includes("evm") && Boolean(effectiveAddress),
+    enabled:
+      !current?.features?.includes("evm") &&
+      !isASIChain &&
+      Boolean(effectiveAddress),
     staleTime: accountOrChainChanged ? 0 : 3600 * 1000,
   });
 

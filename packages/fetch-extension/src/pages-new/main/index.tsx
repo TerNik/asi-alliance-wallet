@@ -19,6 +19,7 @@ import { WalletDetailsView } from "./wallet-details";
 import { WalletOptions } from "./wallet-options";
 import { useLanguage } from "../../languages";
 import { useLoadingIndicator } from "@components/loading-indicator";
+import { isASIChain } from "@keplr-wallet/asi-chain";
 
 export const MainPage: FunctionComponent = observer(() => {
   const [isSelectNetOpen, setIsSelectNetOpen] = useState(false);
@@ -79,6 +80,9 @@ export const MainPage: FunctionComponent = observer(() => {
     if (keyRingStore.keyRingType === "ledger") {
       return;
     }
+    if (isASIChain(chainStore.current)) {
+      return;
+    }
     getJWT(chainStore.current.chainId, AUTH_SERVER).then((res) => {
       chatStore.userDetailsStore.setAccessToken(res);
       getWalletConfig(userState.accessToken)
@@ -114,16 +118,31 @@ export const MainPage: FunctionComponent = observer(() => {
         setIsSelectWalletOpen={setIsSelectWalletOpen}
         tokenState={tokenState}
       />
-      <LineGraphView
-        setTokenState={setTokenState}
-        tokenName={chainStore.current.feeCurrencies[0].coinGeckoId}
-        tokenDenom={chainStore.current.feeCurrencies[0].coinDenom}
-        tokenState={tokenState}
-        priceInVsCurrency={priceInVsCurrency}
-        vsCurrencySymbol={
-          priceStore.supportedVsCurrencies[fiatCurrency]?.symbol || ""
-        }
-      />
+      {isASIChain(chainStore.current) ? (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            color: "#808da0",
+            fontSize: "12px",
+            padding: "24px 0",
+          }}
+        >
+          No data available
+        </div>
+      ) : (
+        <LineGraphView
+          setTokenState={setTokenState}
+          tokenName={chainStore.current.feeCurrencies[0].coinGeckoId}
+          tokenDenom={chainStore.current.feeCurrencies[0].coinDenom}
+          tokenState={tokenState}
+          priceInVsCurrency={priceInVsCurrency}
+          vsCurrencySymbol={
+            priceStore.supportedVsCurrencies[fiatCurrency]?.symbol || ""
+          }
+        />
+      )}
 
       <Dropdown
         styleProp={{ height: "595px", maxHeight: "595px" }}

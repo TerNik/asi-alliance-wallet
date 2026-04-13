@@ -74,6 +74,17 @@ export interface ChainInfo {
     readonly name: string;
     readonly txUrl: string;
   };
+
+  /**
+   * ASI Chain specific endpoints consumed by @asichain/asi-wallet-sdk.
+   * Only set for chains with the "asi-chain" feature. The SDK's
+   * BlockchainGateway is initialized with these URLs instead of the
+   * Cosmos-style rpc/rest pair.
+   */
+  readonly asi?: {
+    readonly validator: string;
+    readonly observer: string;
+  };
 }
 
 export type ChainInfoWithoutEndpoints = Omit<

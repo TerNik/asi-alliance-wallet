@@ -504,24 +504,3 @@ html[data-register-page="true"] #app .container {
 .inputFormGroup {
   margin-bottom: 10px !important;
 }
-
-.asiChainAddressContainer {
-  background: rgba(0, 0, 0, 0.05);
-  border: none;
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  word-break: break-all;
-}
-
-.asiChainAddressLabel {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
-  margin-bottom: 4px;
-}
-
-.asiChainAddressValue {
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.85);
-  font-family: monospace;
-}

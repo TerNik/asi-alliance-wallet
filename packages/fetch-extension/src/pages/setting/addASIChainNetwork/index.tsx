@@ -6,7 +6,6 @@ import { Form } from "reactstrap";
 import { ButtonV2 } from "@components-v2/buttons/button";
 import style from "./style.module.scss";
 import { useStore } from "../../../stores";
-import { Bech32Address } from "@keplr-wallet/cosmos";
 import axios from "axios";
 import { useLoadingIndicator } from "@components/loading-indicator";
 import { INITIAL_ASI_CHAIN_CONFIG, ASI_CHAIN_FEATURE } from "./constants";
@@ -17,9 +16,6 @@ type EndpointCheckResult = {
   reason?: string;
 };
 
-/**
- * ASI Chain uses HTTP nodes, so we accept both http: and https: URLs.
- */
 const isUrlValid = (url: string): boolean => {
   try {
     const parsedUrl = new URL(url);
@@ -39,6 +35,9 @@ export const AddASIChainNetwork: FunctionComponent = () => {
   const [newChainInfo, setNewChainInfo] = useState(INITIAL_ASI_CHAIN_CONFIG);
   const chainList = chainStore.chainInfos;
 
+  const validatorUrl = newChainInfo.asi?.validator ?? "";
+  const observerUrl = newChainInfo.asi?.observer ?? "";
+
   // ── Uniqueness checks ─────────────────────────────────────────────────
   const isChainIdExist = chainList.some(
     (chain) => chain.chainId === newChainInfo.chainId
@@ -47,10 +46,11 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     (chain) =>
       chain.chainName.toLowerCase() === newChainInfo.chainName.toLowerCase()
   );
-  const isRPCExist = chainList.some(
-    (chain) => chain.rpc === newChainInfo.rpc
+  const isValidatorExist = chainList.some(
+    (chain) => chain.asi?.validator === validatorUrl && validatorUrl !== ""
   );
-  const isChainUnique = !isChainNameExist && !isRPCExist && !isChainIdExist;
+  const isChainUnique =
+    !isChainNameExist && !isValidatorExist && !isChainIdExist;
 
   // ── Currency field updater ────────────────────────────────────────────
   const updateCurrencyFields = (
@@ -72,7 +72,7 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     return Math.min(Number(cleaned), 18).toString();
   };
 
-  // ── Field handlers (table/map approach) ───────────────────────────────
+  // ── Field handlers ──────────────────────────────────────────────────
   type FieldHandler = (value: string) => void;
 
   const fieldHandlers: Record<string, FieldHandler> = {
@@ -82,16 +82,18 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     chainName: (value) =>
       setNewChainInfo((prev) => ({ ...prev, chainName: value })),
 
-    rpc: (value) =>
-      setNewChainInfo((prev) => ({ ...prev, rpc: value })),
-
-    rest: (value) =>
-      setNewChainInfo((prev) => ({ ...prev, rest: value })),
-
-    prefix: (value) =>
+    validator: (value) =>
       setNewChainInfo((prev) => ({
         ...prev,
-        bech32Config: Bech32Address.defaultBech32Config(value.trim()),
+        rpc: value,
+        asi: { validator: value, observer: prev.asi?.observer ?? "" },
+      })),
+
+    observer: (value) =>
+      setNewChainInfo((prev) => ({
+        ...prev,
+        rest: value,
+        asi: { validator: prev.asi?.validator ?? "", observer: value },
       })),
 
     denom: (value) =>
@@ -112,7 +114,6 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     setInfo("");
     const { name, value } = e.target;
 
-    // Prevent spaces in all fields except chainName and decimal
     if (name !== "chainName" && name !== "decimal" && /\s/.test(value)) {
       return;
     }
@@ -126,46 +127,20 @@ export const AddASIChainNetwork: FunctionComponent = () => {
   };
 
   // ── Endpoint validation ───────────────────────────────────────────────
-  const checkEndpointValidity = async (
+  const checkEndpointReachable = async (
     url: string,
-    type: "rpc" | "rest"
+    label: string
   ): Promise<EndpointCheckResult> => {
-    if (!isUrlValid(url)) return { valid: false, reason: "URL is invalid" };
-
-    const path =
-      type === "rpc" ? "/status" : "/cosmos/base/tendermint/v1beta1/node_info";
+    if (!isUrlValid(url)) return { valid: false, reason: `${label} URL is invalid` };
 
     try {
-      const fullUrl = `${url.replace(/\/$/, "")}${path}`;
-      const res = await axios.get(fullUrl, { timeout: 4000 });
-
-      if (!res || res.status !== 200 || typeof res.data !== "object") {
-        return { valid: false, reason: "Endpoint not reachable" };
+      const res = await axios.get(url.replace(/\/$/, ""), { timeout: 4000 });
+      if (!res || res.status !== 200) {
+        return { valid: false, reason: `${label} endpoint not reachable` };
       }
-
-      const expectedChainId = newChainInfo.chainId;
-      const network =
-        type === "rpc"
-          ? res.data?.result?.node_info?.network
-          : res.data?.default_node_info?.network ||
-            res.data?.node_info?.network;
-
-      if (!network) {
-        return {
-          valid: false,
-          reason: "Endpoint did not return network info",
-        };
-      }
-      if (network.trim() !== expectedChainId) {
-        return {
-          valid: false,
-          reason: `Endpoint network (${network}) does not match chain ID (${expectedChainId})`,
-        };
-      }
-
       return { valid: true };
     } catch {
-      return { valid: false, reason: "Endpoint unreachable or request failed" };
+      return { valid: false, reason: `${label} endpoint unreachable or request failed` };
     }
   };
 
@@ -175,14 +150,16 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     try {
       loadingIndicator.setIsLoading("chain-details-adding", true);
 
-      const [rpcResult, restResult] = await Promise.all([
-        checkEndpointValidity(newChainInfo.rpc, "rpc"),
-        checkEndpointValidity(newChainInfo.rest, "rest"),
+      const [validatorResult, observerResult] = await Promise.all([
+        checkEndpointReachable(validatorUrl, "Validator"),
+        checkEndpointReachable(observerUrl, "Observer"),
       ]);
 
       const errors: string[] = [];
-      if (!rpcResult.valid) errors.push(`RPC: ${rpcResult.reason}`);
-      if (!restResult.valid) errors.push(`REST: ${restResult.reason}`);
+      if (!validatorResult.valid)
+        errors.push(validatorResult.reason ?? "Validator error");
+      if (!observerResult.valid)
+        errors.push(observerResult.reason ?? "Observer error");
 
       errors.forEach((err) =>
         notification.push({
@@ -198,13 +175,12 @@ export const AddASIChainNetwork: FunctionComponent = () => {
       if (errors.length > 0) {
         setHasErrors(true);
         setInfo(
-          "Invalid REST or RPC endpoint. Please provide a valid endpoint."
+          "Invalid Validator or Observer endpoint. Please provide valid endpoints."
         );
         loadingIndicator.setIsLoading("chain-details-adding", false);
         return;
       }
 
-      // Ensure the asi-chain feature flag is always present
       const features = newChainInfo.features?.includes(ASI_CHAIN_FEATURE)
         ? newChainInfo.features
         : [...(newChainInfo.features || []), ASI_CHAIN_FEATURE];
@@ -229,9 +205,6 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     (newChainInfo.chainName.match(/\(/g)?.length || 0) ===
       (newChainInfo.chainName.match(/\)/g)?.length || 0);
   const isChainIdValid = /^[a-z0-9-_]{3,64}$/.test(newChainInfo.chainId);
-  const isValidBech32Prefix = /^[a-z][a-z0-9]{1,15}$/.test(
-    newChainInfo.bech32Config.bech32PrefixAccAddr
-  );
   const isValidDecimals =
     newChainInfo.stakeCurrency.coinDecimals >= 0 &&
     newChainInfo.stakeCurrency.coinDecimals <= 18;
@@ -247,14 +220,13 @@ export const AddASIChainNetwork: FunctionComponent = () => {
   const hasValidInputs =
     isChainIdValid &&
     isChainNameValid &&
-    isValidBech32Prefix &&
     isValidDenom &&
     isValidSymbol &&
     isValidDecimals;
 
   const isValid =
-    isUrlValid(newChainInfo.rpc) &&
-    isUrlValid(newChainInfo.rest) &&
+    isUrlValid(validatorUrl) &&
+    isUrlValid(observerUrl) &&
     !hasErrors &&
     isChainUnique &&
     hasValidInputs;
@@ -308,16 +280,16 @@ export const AddASIChainNetwork: FunctionComponent = () => {
           required
         />
         <Input
-          label="RPC URL"
+          label="Validator URL"
           type="text"
-          name="rpc"
-          placeholder="http://rpc-asi-dev.fetch.ai"
-          value={newChainInfo.rpc}
+          name="validator"
+          placeholder="http://validator-asi-dev.fetch.ai:40403"
+          value={validatorUrl}
           error={
-            newChainInfo.rpc !== "" && !isUrlValid(newChainInfo.rpc)
-              ? "Invalid RPC URL"
-              : isRPCExist
-              ? "Network with this RPC URL already exists."
+            validatorUrl !== "" && !isUrlValid(validatorUrl)
+              ? "Invalid Validator URL"
+              : isValidatorExist
+              ? "Network with this Validator URL already exists."
               : ""
           }
           formGroupClassName={style["formGroup"]}
@@ -326,36 +298,19 @@ export const AddASIChainNetwork: FunctionComponent = () => {
           required
         />
         <Input
-          label="REST URL"
+          label="Observer URL"
           type="text"
-          name="rest"
-          placeholder="http://rest-asi-dev.fetch.ai"
-          value={newChainInfo.rest}
+          name="observer"
+          placeholder="http://observer-asi-dev.fetch.ai:40403"
+          value={observerUrl}
           error={
-            newChainInfo.rest !== "" && !isUrlValid(newChainInfo.rest)
-              ? "Invalid REST URL"
+            observerUrl !== "" && !isUrlValid(observerUrl)
+              ? "Invalid Observer URL"
               : ""
           }
           formGroupClassName={style["formGroup"]}
           formFeedbackClassName={style["formFeedback"]}
           onChange={handleChange}
-          required
-        />
-        <Input
-          label="Address Prefix"
-          type="text"
-          name="prefix"
-          placeholder="asi"
-          value={newChainInfo.bech32Config.bech32PrefixAccAddr}
-          error={
-            !isValidBech32Prefix &&
-            newChainInfo.bech32Config.bech32PrefixAccAddr
-              ? "Please enter a valid address prefix"
-              : ""
-          }
-          onChange={handleChange}
-          formGroupClassName={style["formGroup"]}
-          formFeedbackClassName={style["formFeedback"]}
           required
         />
         <Input

@@ -3178,79 +3178,35 @@ const EmbedChainInfos: ChainInfo[] = [
   },
 ];
 
+const ASI_STAKE_CURRENCY = {
+  coinDenom: "ASI",
+  coinMinimalDenom: "uasi",
+  coinDecimals: 8,
+};
+
 export const ASIChainInfos: ChainInfo[] = [
-  // ASI Chain Dev
-  {
-    rpc: "http://rpc-asi-dev.fetch.ai",
-    rest: "http://rest-asi-dev.fetch.ai",
-    chainId: "asi-dev-1",
-    chainName: "ASI Chain Dev",
-    stakeCurrency: {
-      coinDenom: "TESTASI",
-      coinMinimalDenom: "atestasi",
-      coinDecimals: 18,
-      coinGeckoId: "fetch-ai",
-    },
-    bip44: {
-      coinType: 60,
-    },
-    bech32Config: Bech32Address.defaultBech32Config("asi"),
-    type: "testnet",
-    currencies: [
-      {
-        coinDenom: "TESTASI",
-        coinMinimalDenom: "atestasi",
-        coinDecimals: 18,
-        coinGeckoId: "fetch-ai",
-      },
-    ],
-    feeCurrencies: [
-      {
-        coinDenom: "TESTASI",
-        coinMinimalDenom: "atestasi",
-        coinDecimals: 18,
-        coinGeckoId: "fetch-ai",
-        gasPriceStep: {
-          low: 0,
-          average: 5000000000,
-          high: 6250000000,
-        },
-      },
-    ],
-    features: ["cosmwasm", "asi-chain"],
-    chainSymbolImageUrl: require("./public/assets/png/Black-white-circle.png"),
-  },
   // ASI Chain Devnet
   {
-    rpc: "http://rpc-asi-devnet.fetch.ai",
-    rest: "http://rest-asi-devnet.fetch.ai",
+    rpc: "https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_0/HTTP_API",
+    rest: "https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_0/HTTP_API",
+    asi: {
+      validator:
+        "https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_0/HTTP_API",
+      observer:
+        "https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_0/HTTP_API",
+    },
     chainId: "asi-devnet-1",
     chainName: "ASI Chain Devnet",
-    stakeCurrency: {
-      coinDenom: "TESTASI",
-      coinMinimalDenom: "atestasi",
-      coinDecimals: 18,
-      coinGeckoId: "fetch-ai",
-    },
+    stakeCurrency: ASI_STAKE_CURRENCY,
     bip44: {
       coinType: 60,
     },
     bech32Config: Bech32Address.defaultBech32Config("asi"),
     type: "testnet",
-    currencies: [
-      {
-        coinDenom: "TESTASI",
-        coinMinimalDenom: "atestasi",
-        coinDecimals: 18,
-        coinGeckoId: "fetch-ai",
-      },
-    ],
+    currencies: [ASI_STAKE_CURRENCY],
     feeCurrencies: [
       {
-        coinDenom: "TESTASI",
-        coinMinimalDenom: "atestasi",
-        coinDecimals: 18,
-        coinGeckoId: "fetch-ai",
+        ...ASI_STAKE_CURRENCY,
         gasPriceStep: {
           low: 0,
           average: 5000000000,
@@ -3258,7 +3214,7 @@ export const ASIChainInfos: ChainInfo[] = [
         },
       },
     ],
-    features: ["cosmwasm", "asi-chain"],
+    features: ["asi-chain"],
     chainSymbolImageUrl: require("./public/assets/png/Black-white-circle.png"),
   },
 ];
