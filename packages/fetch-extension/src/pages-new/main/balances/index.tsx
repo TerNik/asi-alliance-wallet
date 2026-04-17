@@ -1,5 +1,6 @@
 import React from "react";
 import style from "./style.module.scss";
+
 import { useStore } from "../../../stores";
 import { ChainIdHelper } from "@keplr-wallet/cosmos";
 import { useLanguage } from "../../../languages";
@@ -7,7 +8,6 @@ import { AppCurrency } from "@keplr-wallet/types";
 import { observer } from "mobx-react-lite";
 import { useNavigate } from "react-router";
 import { separateNumericAndDenom } from "@utils/format";
-import { Skeleton } from "@components-v2/skeleton-loader";
 import { WalletStatus } from "@keplr-wallet/stores";
 import { useQuery } from "@tanstack/react-query";
 import { CoinPretty, Int } from "@keplr-wallet/unit";
@@ -18,6 +18,8 @@ import {
 import { moonpaySupportedTokensByChainId } from "../../more/token/moonpay/utils";
 import { addressCacheStore } from "../../../utils/address-cache-store";
 import { isASIChain as isASIChainPredicate } from "@keplr-wallet/asi-chain";
+import { BalanceFieldEvm } from "./balance-field-evm";
+import { BalanceFieldCosmos } from "./balance-field-cosmos";
 
 interface Props {
   tokenState: any;
@@ -48,35 +50,55 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
   const selectedKeyStore = keyRingStore.multiKeyStoreInfo.find(
     (ks) => ks.selected
   );
+
   const selectedWalletId = selectedKeyStore?.meta?.["__id__"] || "";
-  const cachedSelectedAddress =
-    selectedWalletId && current.chainId
-      ? addressCacheStore.getCache(current.chainId)[selectedWalletId] || ""
-      : "";
+
+  const cachedAddress = current.chainId
+    ? addressCacheStore.getCache(current.chainId)[selectedWalletId] || ""
+    : "";
+
+  const cachedSelectedAddress = selectedWalletId && cachedAddress;
+
   const isASIChain = isASIChainPredicate(current);
+
   const asiChainAddress =
     (isASIChain && selectedKeyStore?.meta?.["asiChainAddress"]) || "";
-  const effectiveAddress = isASIChain
-    ? asiChainAddress
-    : accountInfo.walletStatus === WalletStatus.Loaded
-    ? accountInfo.bech32Address
-    : cachedSelectedAddress;
+
+  const loadedAddress =
+    accountInfo.walletStatus === WalletStatus.Loaded
+      ? accountInfo.bech32Address
+      : cachedSelectedAddress;
+
+  const effectiveAddress = isASIChain ? asiChainAddress : loadedAddress;
 
   const balanceQuery =
     !isASIChain && effectiveAddress
       ? queries.queryBalances.getQueryBech32Address(effectiveAddress)
       : undefined;
+
   const balanceStakableQuery = balanceQuery ? balanceQuery.stakable : undefined;
 
   const isNoble =
     ChainIdHelper.parse(chainStore.current.chainId).identifier === "noble";
+
   const hasUSDC = chainStore.current.currencies.find(
     (currency: AppCurrency) => currency.coinMinimalDenom === "uusdc"
   );
 
   const isEvm = chainStore.current.features?.includes("evm") ?? false;
+
   const currency = current.feeCurrencies?.[0];
-  const zero = currency ? new CoinPretty(currency, new Int(0)).ready(false) : undefined;
+
+  const zero = currency
+    ? new CoinPretty(currency, new Int(0)).ready(false)
+    : undefined;
+
+  const emptyBalance = () =>
+    zero ??
+    new CoinPretty(
+      { coinDecimals: 0, coinDenom: "", coinMinimalDenom: "" } as any,
+      new Int(0)
+    ).ready(false);
 
   const asiBalanceEntry =
     isASIChain && asiChainAddress
@@ -85,35 +107,33 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
 
   const stakable = (() => {
     if (isASIChain) {
-      return (
-        asiBalanceEntry?.balance ??
-        zero ??
-        new CoinPretty(
-          { coinDecimals: 0, coinDenom: "", coinMinimalDenom: "" } as any,
-          new Int(0)
-        ).ready(false)
-      );
+      return asiBalanceEntry?.balance ?? emptyBalance();
     }
+
     if (!effectiveAddress || !balanceQuery || !balanceStakableQuery) {
-      return zero ?? new CoinPretty({ coinDecimals: 0, coinDenom: "", coinMinimalDenom: "" } as any, new Int(0)).ready(false);
+      return emptyBalance();
     }
+
     if (isNoble && hasUSDC) {
       return balanceQuery.getBalanceFromCurrency(hasUSDC);
     }
+
     return balanceStakableQuery.balance;
   })();
 
-  const delegated = !isASIChain && effectiveAddress
-    ? queries.cosmos.queryDelegations
-        .getQueryBech32Address(effectiveAddress)
-        .total.upperCase(true)
-    : zero ?? new CoinPretty({ coinDecimals: 0, coinDenom: "", coinMinimalDenom: "" } as any, new Int(0)).ready(false);
+  const delegated =
+    effectiveAddress && !isASIChain
+      ? queries.cosmos.queryDelegations
+          .getQueryBech32Address(effectiveAddress)
+          .total.upperCase(true)
+      : emptyBalance();
 
-  const unbonding = !isASIChain && effectiveAddress
-    ? queries.cosmos.queryUnbondingDelegations
-        .getQueryBech32Address(effectiveAddress)
-        .total.upperCase(true)
-    : zero ?? new CoinPretty({ coinDecimals: 0, coinDenom: "", coinMinimalDenom: "" } as any, new Int(0)).ready(false);
+  const unbonding =
+    effectiveAddress && !isASIChain
+      ? queries.cosmos.queryUnbondingDelegations
+          .getQueryBech32Address(effectiveAddress)
+          .total.upperCase(true)
+      : emptyBalance();
 
   const accountOrChainChanged =
     activityStore.getAddress !== effectiveAddress ||
@@ -125,10 +145,10 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
     queryKey: ["rewards", effectiveAddress, current.chainId],
     queryFn: async () => {
       if (effectiveAddress && current.chainId) {
-        const rewards = queries.cosmos.queryRewards.getQueryBech32Address(
-          effectiveAddress
-        );
+        const rewards =
+          queries.cosmos.queryRewards.getQueryBech32Address(effectiveAddress);
         await rewards.waitFreshResponse();
+
         const stakableRewards = rewards.stakableReward;
         return stakableRewards;
       }
@@ -154,9 +174,10 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
     chainStore.chainInfos
   );
 
-  const stakableReward =
-    rewards?.data || (currency ? new CoinPretty(currency, new Int(0)).ready(false) : (zero ?? new CoinPretty({ coinDecimals: 0, coinDenom: "", coinMinimalDenom: "" } as any, new Int(0)).ready(false)));
+  const stakableReward = rewards?.data || emptyBalance();
+
   const stakedSum = delegated.add(unbonding);
+
   const total = stakable.add(stakedSum).add(stakableReward);
 
   const totalPrice = priceStore.calculatePrice(total, fiatCurrency);
@@ -176,131 +197,64 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
       ? style["increaseInDollarsGreen"]
       : style["increaseInDollarsOrange"];
 
-  // check if address is whitelisted for Buy/Sell feature
+  const whitelistedBuySellAddress =
+    current.chainId === "1" || current.chainId === "injective-1"
+      ? accountInfo.ethereumHexAddress || ""
+      : effectiveAddress;
+
   const isAddressWhitelisted = effectiveAddress
-    ? checkAddressIsBuySellWhitelisted(
-        current.chainId === "1" || current.chainId === "injective-1"
-          ? accountInfo.ethereumHexAddress || ""
-          : effectiveAddress
-      )
+    ? checkAddressIsBuySellWhitelisted(whitelistedBuySellAddress)
     : false;
+
+  const goToPortfolio = () => {
+    analyticsStore.logEvent("view_portfolio_click", {
+      pageName: "Home",
+    });
+    navigate("/portfolio");
+  };
 
   return (
     <div className={style["balance-card"]}>
       {isEvm ? (
-        <div className={style["balance-field"]}>
-          <div className={style["balance"]}>
-            {Number(totalNumber).toLocaleString("en-US")}{" "}
-            <div className={style["denom"]}>{totalDenom}</div>
-          </div>
-          <div className={style["inUsd"]}>
-            {totalPrice && ` ${totalPrice.toString()} `}
-          </div>
-          {tokenState?.diff ? (
-            <div
-              className={` ${
-                tokenState.type === "positive"
-                  ? style["priceChangesGreen"]
-                  : style["priceChangesOrange"]
-              }`}
-            >
-              <div
-                className={
-                  style["changeInDollars"] + " " + changeInDollarsClass
-                }
-              >
-                {`${
-                  priceStore.getFiatCurrency(fiatCurrency)?.symbolName
-                }${changeInDollarsValue.toFixed(4)} ${totalDenom}`}
-              </div>
-              <div className={style["changeInPer"]}>
-                ( {tokenState.type === "positive" ? "+" : "-"}
-                {parseFloat(tokenState.percentageDiff).toFixed(1)} %)
-              </div>
-              <div className={style["day"]}>{tokenState.time}</div>
-            </div>
-          ) : (
-            ""
-          )}
-        </div>
+        <BalanceFieldEvm
+          totalNumber={totalNumber}
+          totalDenom={totalDenom}
+          totalPrice={totalPrice}
+          tokenState={tokenState}
+          changeInDollarsValue={changeInDollarsValue}
+          changeInDollarsClass={changeInDollarsClass}
+          priceStore={priceStore}
+          fiatCurrency={fiatCurrency}
+        />
       ) : (
-        <div className={style["balance-field"]}>
-          <div className={style["balance"]}>
-            {keyRingStore.status === 0 || !effectiveAddress ? (
-              <Skeleton height="37.5px" width="100px" />
-            ) : (
-              <React.Fragment>
-                {Number(totalNumber).toLocaleString("en-US")}{" "}
-                <div className={style["denom"]}>{totalDenom}</div>
-              </React.Fragment>
-            )}
-          </div>
-          <div className={style["inUsd"]}>
-            {keyRingStore.status === 0 || !effectiveAddress ? (
-              <Skeleton height="21px" width="100px" />
-            ) : totalPrice ? (
-              ` ${totalPrice.toString()} ${fiatCurrency.toUpperCase()}`
-            ) : (
-              ` ${total
-                .shrink(true)
-                .trim(true)
-                .hideDenom(true)
-                .maxDecimals(6)
-                .toString()} ${fiatCurrency.toUpperCase()}`
-            )}
-          </div>
-          {tokenState?.diff ? (
-            <div
-              className={` ${
-                tokenState.type === "positive"
-                  ? style["priceChangesGreen"]
-                  : style["priceChangesOrange"]
-              }`}
-            >
-              <div
-                className={
-                  style["changeInDollars"] + " " + changeInDollarsClass
-                }
-              >
-                {`${tokenState.type === "positive" ? "+" : "-"} ${
-                  priceStore.getFiatCurrency(fiatCurrency)?.symbolName
-                } ${changeInDollarsValue.toFixed(4)}`}
-              </div>
-              <div className={style["changeInPer"]}>
-                ({tokenState.type === "positive" ? "+" : "-"}
-                {parseFloat(tokenState.percentageDiff).toFixed(1)} %)
-              </div>
-              <div className={style["day"]}>{tokenState.time}</div>
-            </div>
-          ) : (
-            ""
-          )}
-        </div>
+        <BalanceFieldCosmos
+          keyRingStoreStatus={keyRingStore.status}
+          effectiveAddress={effectiveAddress}
+          totalNumber={totalNumber}
+          totalDenom={totalDenom}
+          totalPrice={totalPrice}
+          fiatCurrency={fiatCurrency}
+          total={total}
+          tokenState={tokenState}
+          changeInDollarsValue={changeInDollarsValue}
+          changeInDollarsClass={changeInDollarsClass}
+          priceStore={priceStore}
+        />
       )}
       <div className={style["btnContainer"]}>
         {moonpaySupportedTokens?.length > 0 &&
-        !current.beta &&
-        isAddressWhitelisted ? (
-          <button
-            className={`${style["portfolio"]} ${style["buy"]}`}
-            onClick={() => {
-              navigate("/more/token/moonpay");
-            }}
-          >
-            Buy/Sell
-          </button>
-        ) : (
-          ""
-        )}
-        <button
-          className={style["portfolio"]}
-          onClick={() => {
-            analyticsStore.logEvent("view_portfolio_click", {
-              pageName: "Home",
-            });
-            navigate("/portfolio");
-          }}
-        >
+          !current.beta &&
+          isAddressWhitelisted && (
+            <button
+              className={`${style["portfolio"]} ${style["buy"]}`}
+              onClick={() => {
+                navigate("/more/token/moonpay");
+              }}
+            >
+              Buy/Sell
+            </button>
+          )}
+        <button className={style["portfolio"]} onClick={goToPortfolio}>
           Portfolio
           <img src={require("@assets/svg/chevron-right.svg")} alt="chevron" />
         </button>

@@ -34,10 +34,16 @@ export class ASIBalanceService {
     chainInfo: ASIChainInfo,
     address: string
   ): Promise<bigint | null> {
-    if (!isASIChain(chainInfo)) return null;
-    if (!address || !isAddress(address)) return null;
+    if (!isASIChain(chainInfo)) {
+      return null;
+    }
+
+    if (!address || !isAddress(address)) {
+      return null;
+    }
 
     this.ensureGatewayInitialized(chainInfo);
+
     return this.assetsService.getASIBalance(address as Address);
   }
 }

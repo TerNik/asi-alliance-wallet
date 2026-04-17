@@ -10,3 +10,28 @@
   border-radius: 6px;
   padding: 0px 5px 1px;
 }
+
+.rightIconContainer {
+  display: flex;
+}
+
+.rightIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.checkIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.editIcon {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.rightContentContainer {
+  display: flex;
+  column-gap: 12px;
+}
