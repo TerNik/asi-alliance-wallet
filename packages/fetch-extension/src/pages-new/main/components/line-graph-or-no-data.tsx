@@ -22,10 +22,10 @@ export const LineGraphOrNoData: React.FC<LineGraphOrNoDataProps> = ({
   vsCurrencySymbol,
 }) => {
   if (isASIChain) {
-    return <NoDataAvailable />;
+    return null;
   }
 
-  if (!feeCurrencies || feeCurrencies.length === 0) {
+  if (!feeCurrencies || !feeCurrencies.length) {
     return <NoDataAvailable />;
   }
 
