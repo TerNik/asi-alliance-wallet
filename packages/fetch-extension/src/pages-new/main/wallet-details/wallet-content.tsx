@@ -1,7 +1,10 @@
 import React from "react";
 import { WalletStatus } from "@keplr-wallet/stores";
-import { Skeleton } from "@components-v2/skeleton-loader";
-import { ASIChainAddressDisplay, Bech32AddressDisplay, EVMAddressDisplay } from "./address-display";
+import {
+  ASIChainAddressDisplay,
+  Bech32AddressDisplay,
+  EVMAddressDisplay,
+} from "./address-display";
 import { RejectionReasonTooltip } from "./rejection-tooltip";
 import style from "../style.module.scss";
 
@@ -34,12 +37,12 @@ export const WalletContent: React.FC<WalletContentProps> = ({
 
   return (
     <div style={{ width: "100%" }}>
-      {/* Rejection Reason */}
       <div className={style["walletRejected"]}>
-        {isRejected && <RejectionReasonTooltip rejectionReason={rejectionReason} />}
+        {isRejected && (
+          <RejectionReasonTooltip rejectionReason={rejectionReason} />
+        )}
       </div>
 
-      {/* ASI Chain Address */}
       {!isRejected && !isEvm && isASIChain && (
         <ASIChainAddressDisplay
           address={asiChainAddress}
@@ -48,7 +51,6 @@ export const WalletContent: React.FC<WalletContentProps> = ({
         />
       )}
 
-      {/* Bech32 Address */}
       {!isRejected && !isEvm && !isASIChain && (
         <Bech32AddressDisplay
           address={displayBech32Address}
@@ -57,7 +59,6 @@ export const WalletContent: React.FC<WalletContentProps> = ({
         />
       )}
 
-      {/* EVM Address */}
       {!isRejected && !isASIChain && (isEvm || displayEvmAddress) && (
         <EVMAddressDisplay
           address={displayEvmAddress}

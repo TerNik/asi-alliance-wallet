@@ -1,6 +1,7 @@
 import { useNotification } from "@components/notification";
 import { WalletStatus } from "@keplr-wallet/stores";
-import { formatAddress, separateNumericAndDenom } from "@utils/format";
+import { separateNumericAndDenom } from "@utils/format";
+// import { formatAddress, separateNumericAndDenom } from "@utils/format";
 import { useIntl } from "react-intl";
 import { useNavigate } from "react-router";
 import { Button } from "reactstrap";
@@ -306,7 +307,8 @@ export const WalletDetailsView = observer(
             }}
             className={style["chain-select"]}
           >
-            {formatAddress(current.chainName)}
+            {/* {formatAddress(current.chainName)} */}
+            {current.chainName}
             <img
               src={require("@assets/svg/wireframe/chevron-down.svg")}
               alt=""

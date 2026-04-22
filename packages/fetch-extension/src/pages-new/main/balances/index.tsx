@@ -19,7 +19,7 @@ import { moonpaySupportedTokensByChainId } from "../../more/token/moonpay/utils"
 import { addressCacheStore } from "../../../utils/address-cache-store";
 import { isASIChain as isASIChainPredicate } from "@keplr-wallet/asi-chain";
 import { BalanceFieldEvm } from "./balance-field-evm";
-import { BalanceFieldCosmos } from "./balance-field-cosmos";
+import { BalanceFieldDefault } from "./balance-field-default";
 
 interface Props {
   tokenState: any;
@@ -227,7 +227,7 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
           fiatCurrency={fiatCurrency}
         />
       ) : (
-        <BalanceFieldCosmos
+        <BalanceFieldDefault
           keyRingStoreStatus={keyRingStore.status}
           effectiveAddress={effectiveAddress}
           totalNumber={totalNumber}

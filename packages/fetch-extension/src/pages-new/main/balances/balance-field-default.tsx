@@ -1,6 +1,9 @@
+import style from "./style.module.scss";
 import React, { Fragment } from "react";
 import { Skeleton } from "@components-v2/skeleton-loader";
-import style from "./style.module.scss";
+import { isASIChain } from "@keplr-wallet/asi-chain";
+
+import { useStore } from "../../../stores";
 
 interface BalanceFieldCosmosProps {
   keyRingStoreStatus: number;
@@ -66,7 +69,7 @@ const PriceDisplay: React.FC<PriceDisplayProps> = ({
 
   if (totalPrice) {
     return (
-      <React.Fragment>{` ${totalPrice.toString()} ${fiatCurrency.toUpperCase()}`}</React.Fragment>
+      <Fragment>{` ${totalPrice.toString()} ${fiatCurrency.toUpperCase()}`}</Fragment>
     );
   }
 
@@ -116,7 +119,7 @@ const PriceChanges: React.FC<PriceChangesProps> = ({
   );
 };
 
-export const BalanceFieldCosmos: React.FC<BalanceFieldCosmosProps> = ({
+export const BalanceFieldDefault: React.FC<BalanceFieldCosmosProps> = ({
   keyRingStoreStatus,
   effectiveAddress,
   totalNumber,
@@ -129,7 +132,10 @@ export const BalanceFieldCosmos: React.FC<BalanceFieldCosmosProps> = ({
   changeInDollarsClass,
   priceStore,
 }) => {
+  const { chainStore } = useStore();
+
   const isLoading = !keyRingStoreStatus || !effectiveAddress;
+  const isAsiChainUsed = isASIChain(chainStore.current);
 
   return (
     <div className={style["balance-field"]}>
@@ -140,21 +146,25 @@ export const BalanceFieldCosmos: React.FC<BalanceFieldCosmosProps> = ({
           totalDenom={totalDenom}
         />
       </div>
-      <div className={style["inUsd"]}>
-        <PriceDisplay
-          isLoading={isLoading}
-          totalPrice={totalPrice}
-          fiatCurrency={fiatCurrency}
-          total={total}
-        />
-      </div>
-      <PriceChanges
-        tokenState={tokenState}
-        changeInDollarsValue={changeInDollarsValue}
-        changeInDollarsClass={changeInDollarsClass}
-        fiatCurrency={fiatCurrency}
-        priceStore={priceStore}
-      />
+      {!isAsiChainUsed && (
+        <Fragment>
+          <div className={style["inUsd"]}>
+            <PriceDisplay
+              isLoading={isLoading}
+              totalPrice={totalPrice}
+              fiatCurrency={fiatCurrency}
+              total={total}
+            />
+          </div>
+          <PriceChanges
+            tokenState={tokenState}
+            changeInDollarsValue={changeInDollarsValue}
+            changeInDollarsClass={changeInDollarsClass}
+            fiatCurrency={fiatCurrency}
+            priceStore={priceStore}
+          />
+        </Fragment>
+      )}
     </div>
   );
 };
