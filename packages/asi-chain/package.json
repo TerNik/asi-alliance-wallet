@@ -4,8 +4,6 @@
   "description": "ASI Chain integration for Keplr Wallet",
   "main": "build/index.js",
   "types": "build/index.d.ts",
-  "author": "chainapsis",
-  "license": "Apache-2.0",
   "files": [
     "build"
   ],

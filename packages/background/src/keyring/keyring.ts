@@ -56,14 +56,10 @@ export type MultiKeyStoreInfoWithSelected = MultiKeyStoreInfoWithSelectedElem[];
 
 /** True if the key store is a 24-word mnemonic (Cardano-capable). */
 export function walletSupportsCardano(
-  ks:
-    | { type?: string; meta?: Record<string, unknown> }
-    | null
-    | undefined
+  ks: { type?: string; meta?: Record<string, unknown> } | null | undefined
 ): boolean {
   return (
-    ks?.type === "mnemonic" &&
-    String(ks.meta?.["mnemonicLength"]) === "24"
+    ks?.type === "mnemonic" && String(ks.meta?.["mnemonicLength"]) === "24"
   );
 }
 
@@ -1165,11 +1161,6 @@ export class KeyRing {
     return this.getMultiKeyStoreInfo();
   }
 
-  /**
-   * Merge additional fields into the meta of the keystore at the given index
-   * without touching its encrypted payload. Used for lazy migrations such as
-   * persisting the derived ASI Chain Metacycle address on first unlock.
-   */
   public async updateKeyStoreMeta(
     index: number,
     metaPatch: Record<string, string>
@@ -1195,12 +1186,6 @@ export class KeyRing {
     await this.save();
   }
 
-  /**
-   * Decrypt the mnemonic stored in the keystore at the given index using the
-   * currently unlocked in-memory password. Only valid while the keyring is
-   * UNLOCKED. The returned string should be used synchronously and discarded
-   * by the caller so it doesn't linger in memory.
-   */
   public async decryptMnemonicAt(index: number): Promise<string | undefined> {
     if (this.status !== KeyRingStatus.UNLOCKED || !this.password) {
       return undefined;
@@ -1829,7 +1814,9 @@ export class KeyRing {
 
             try {
               const cache = await this.loadGenericChainCache(currentChainId);
-              const activeEntry = activeWalletId ? cache[activeWalletId] : undefined;
+              const activeEntry = activeWalletId
+                ? cache[activeWalletId]
+                : undefined;
               if (activeEntry?.address) {
                 cachedActiveAddress = activeEntry.address;
               }
@@ -1862,14 +1849,15 @@ export class KeyRing {
             }
 
             if (activeWalletAddress) {
-              const consistencyResult = await this.cacheManager.checkConsistency(
-                currentChainId,
-                walletIds,
-                walletNames,
-                activeWalletId,
-                activeWalletAddress,
-                isCardano
-              );
+              const consistencyResult =
+                await this.cacheManager.checkConsistency(
+                  currentChainId,
+                  walletIds,
+                  walletNames,
+                  activeWalletId,
+                  activeWalletAddress,
+                  isCardano
+                );
 
               if (!consistencyResult.isConsistent) {
                 await this.clearAllAddressCaches();
@@ -1898,8 +1886,13 @@ export class KeyRing {
 
             try {
               const cache = await this.loadCardanoChainCache(currentChainId);
-              const activeEntry = activeWalletId ? cache[activeWalletId] : undefined;
-              if (activeEntry?.address && isValidCardanoAddress(activeEntry.address)) {
+              const activeEntry = activeWalletId
+                ? cache[activeWalletId]
+                : undefined;
+              if (
+                activeEntry?.address &&
+                isValidCardanoAddress(activeEntry.address)
+              ) {
                 cachedActiveAddress = activeEntry.address;
               }
               hasFullCache =
@@ -1917,7 +1910,9 @@ export class KeyRing {
               const activeWalletIndex = walletIds.indexOf(activeWalletId);
               activeWalletAddress =
                 activeWalletIndex >= 0 && keys[activeWalletIndex]?.address
-                  ? Buffer.from(keys[activeWalletIndex].address).toString("utf8")
+                  ? Buffer.from(keys[activeWalletIndex].address).toString(
+                      "utf8"
+                    )
                   : "";
 
               await this.updateCacheForActiveWallet(
@@ -1931,14 +1926,15 @@ export class KeyRing {
             }
 
             if (activeWalletAddress && hasFullCache) {
-              const consistencyResult = await this.cacheManager.checkConsistency(
-                currentChainId,
-                walletIds,
-                walletNames,
-                activeWalletId,
-                activeWalletAddress,
-                isCardano
-              );
+              const consistencyResult =
+                await this.cacheManager.checkConsistency(
+                  currentChainId,
+                  walletIds,
+                  walletNames,
+                  activeWalletId,
+                  activeWalletAddress,
+                  isCardano
+                );
 
               if (!consistencyResult.isConsistent) {
                 await this.clearAllAddressCaches();
