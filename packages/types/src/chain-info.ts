@@ -74,6 +74,10 @@ export interface ChainInfo {
     readonly name: string;
     readonly txUrl: string;
   };
+  readonly asi?: {
+    readonly validator: string;
+    readonly observer: string;
+  };
 }
 
 export type ChainInfoWithoutEndpoints = Omit<

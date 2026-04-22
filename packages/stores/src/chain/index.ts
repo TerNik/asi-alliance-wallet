@@ -293,6 +293,16 @@ export class ChainInfoInner<C extends ChainInfo = ChainInfo>
   get explorerUrl(): string | undefined {
     return this.raw.explorerUrl;
   }
+
+  get type(): "mainnet" | "testnet" | "cardano" | undefined {
+    return this.raw.type;
+  }
+
+  get asi():
+    | { readonly validator: string; readonly observer: string }
+    | undefined {
+    return this.raw.asi;
+  }
 }
 
 export type ChainInfoOverrider<C extends ChainInfo = ChainInfo> = (

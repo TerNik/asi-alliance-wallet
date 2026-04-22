@@ -5,6 +5,7 @@ import {
 } from "./keyring";
 import { Key, KeyStoreMetaKnown } from "./types";
 import { CardanoService } from "../cardano/service";
+import { ASIChainService } from "@keplr-wallet/asi-chain";
 
 import {
   Bech32Address,
@@ -65,14 +66,17 @@ export class KeyRingService {
   public chainsService!: ChainsService;
   public permissionService!: PermissionService;
   private cardanoService: CardanoService;
+  private asiChainService: ASIChainService;
 
   constructor(
     protected readonly kvStore: KVStore,
     protected readonly embedChainInfos: ChainInfo[],
     protected readonly crypto: CommonCrypto,
-    cardanoService: CardanoService
+    cardanoService: CardanoService,
+    asiChainService?: ASIChainService
   ) {
     this.cardanoService = cardanoService;
+    this.asiChainService = asiChainService ?? new ASIChainService();
   }
 
   public getKeyRing(): KeyRing {
@@ -356,11 +360,18 @@ export class KeyRingService {
         return {};
       });
 
+    const asiChainMeta = await this.asiChainService
+      .createMetaFromMnemonic(mnemonic, bip44HDPath.addressIndex)
+      .catch((error) => {
+        console.error("Failed to create ASI Chain meta:", error);
+        return {};
+      });
+
     const keyStoreInfo = await this.keyRing.createMnemonicKey(
       kdf,
       mnemonic,
       password,
-      { ...meta, ...cardanoMeta },
+      { ...meta, ...cardanoMeta, ...asiChainMeta },
       bip44HDPath,
       "secp256k1"
     );
@@ -456,7 +467,54 @@ export class KeyRingService {
       }
     }
 
+    this.backfillASIChainAddressesInBackground();
+
     return this.keyRing.status;
+  }
+
+  private backfillASIChainAddressesInBackground(): void {
+    void (async () => {
+      try {
+        const infos = this.keyRing.getMultiKeyStoreInfo();
+        for (let i = 0; i < infos.length; i++) {
+          const info = infos[i];
+          if (info.type !== "mnemonic") continue;
+          if (info.meta && info.meta["asiChainAddress"]) continue;
+
+          const mnemonic = await this.keyRing.decryptMnemonicAt(i);
+          if (!mnemonic) continue;
+
+          const addressIndex = info.bip44HDPath?.addressIndex ?? 0;
+          const meta = await this.asiChainService
+            .createMetaFromMnemonic(mnemonic, addressIndex)
+            .catch((error) => {
+              console.error(
+                "[KeyRingService] Failed to backfill ASI Chain meta:",
+                error
+              );
+              return {} as Record<string, string>;
+            });
+
+          if (meta["asiChainAddress"]) {
+            try {
+              await this.keyRing.updateKeyStoreMeta(i, {
+                asiChainAddress: meta["asiChainAddress"],
+              });
+            } catch (e) {
+              console.error(
+                "[KeyRingService] Failed to persist ASI Chain meta:",
+                e
+              );
+            }
+          }
+        }
+      } catch (e) {
+        console.error(
+          "[KeyRingService] ASI Chain address backfill failed:",
+          e
+        );
+      }
+    })();
   }
 
   async getKey(chainId: string): Promise<Key> {
@@ -1163,10 +1221,17 @@ Salt: ${salt}`;
   ): Promise<{
     multiKeyStoreInfo: MultiKeyStoreInfoWithSelected;
   }> {
+    const asiChainMeta = await this.asiChainService
+      .createMetaFromMnemonic(mnemonic, bip44HDPath.addressIndex)
+      .catch((error) => {
+        console.error("Failed to create ASI Chain meta:", error);
+        return {};
+      });
+
     const result = await this.keyRing.addMnemonicKey(
       kdf,
       mnemonic,
-      meta,
+      { ...meta, ...asiChainMeta },
       bip44HDPath,
       curve
     );

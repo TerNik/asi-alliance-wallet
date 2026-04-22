@@ -56,14 +56,10 @@ export type MultiKeyStoreInfoWithSelected = MultiKeyStoreInfoWithSelectedElem[];
 
 /** True if the key store is a 24-word mnemonic (Cardano-capable). */
 export function walletSupportsCardano(
-  ks:
-    | { type?: string; meta?: Record<string, unknown> }
-    | null
-    | undefined
+  ks: { type?: string; meta?: Record<string, unknown> } | null | undefined
 ): boolean {
   return (
-    ks?.type === "mnemonic" &&
-    String(ks.meta?.["mnemonicLength"]) === "24"
+    ks?.type === "mnemonic" && String(ks.meta?.["mnemonicLength"]) === "24"
   );
 }
 
@@ -1165,6 +1161,54 @@ export class KeyRing {
     return this.getMultiKeyStoreInfo();
   }
 
+  public async updateKeyStoreMeta(
+    index: number,
+    metaPatch: Record<string, string>
+  ): Promise<void> {
+    if (this.status !== KeyRingStatus.UNLOCKED) {
+      throw new Error("Key ring is not unlocked");
+    }
+
+    const keyStore = this.multiKeyStore[index];
+    if (!keyStore) {
+      throw new Error("Key store is empty");
+    }
+
+    keyStore.meta = { ...keyStore.meta, ...metaPatch };
+
+    if (
+      this.keyStore &&
+      KeyRing.getKeyStoreId(this.keyStore) === KeyRing.getKeyStoreId(keyStore)
+    ) {
+      this.keyStore = keyStore;
+    }
+
+    await this.save();
+  }
+
+  public async decryptMnemonicAt(index: number): Promise<string | undefined> {
+    if (this.status !== KeyRingStatus.UNLOCKED || !this.password) {
+      return undefined;
+    }
+
+    const keyStore = this.multiKeyStore[index];
+    if (!keyStore || keyStore.type !== "mnemonic") {
+      return undefined;
+    }
+
+    try {
+      return Buffer.from(
+        await Crypto.decrypt(this.crypto, keyStore, this.password)
+      ).toString();
+    } catch (e) {
+      console.error(
+        `[KeyRing] Failed to decrypt mnemonic at index ${index}:`,
+        e
+      );
+      return undefined;
+    }
+  }
+
   private loadKey(coinType: number, useEthereumAddress: boolean = false): Key {
     if (this.status !== KeyRingStatus.UNLOCKED) {
       throw new Error("Key ring is not unlocked");
@@ -1770,7 +1814,9 @@ export class KeyRing {
 
             try {
               const cache = await this.loadGenericChainCache(currentChainId);
-              const activeEntry = activeWalletId ? cache[activeWalletId] : undefined;
+              const activeEntry = activeWalletId
+                ? cache[activeWalletId]
+                : undefined;
               if (activeEntry?.address) {
                 cachedActiveAddress = activeEntry.address;
               }
@@ -1803,14 +1849,15 @@ export class KeyRing {
             }
 
             if (activeWalletAddress) {
-              const consistencyResult = await this.cacheManager.checkConsistency(
-                currentChainId,
-                walletIds,
-                walletNames,
-                activeWalletId,
-                activeWalletAddress,
-                isCardano
-              );
+              const consistencyResult =
+                await this.cacheManager.checkConsistency(
+                  currentChainId,
+                  walletIds,
+                  walletNames,
+                  activeWalletId,
+                  activeWalletAddress,
+                  isCardano
+                );
 
               if (!consistencyResult.isConsistent) {
                 await this.clearAllAddressCaches();
@@ -1839,8 +1886,13 @@ export class KeyRing {
 
             try {
               const cache = await this.loadCardanoChainCache(currentChainId);
-              const activeEntry = activeWalletId ? cache[activeWalletId] : undefined;
-              if (activeEntry?.address && isValidCardanoAddress(activeEntry.address)) {
+              const activeEntry = activeWalletId
+                ? cache[activeWalletId]
+                : undefined;
+              if (
+                activeEntry?.address &&
+                isValidCardanoAddress(activeEntry.address)
+              ) {
                 cachedActiveAddress = activeEntry.address;
               }
               hasFullCache =
@@ -1858,7 +1910,9 @@ export class KeyRing {
               const activeWalletIndex = walletIds.indexOf(activeWalletId);
               activeWalletAddress =
                 activeWalletIndex >= 0 && keys[activeWalletIndex]?.address
-                  ? Buffer.from(keys[activeWalletIndex].address).toString("utf8")
+                  ? Buffer.from(keys[activeWalletIndex].address).toString(
+                      "utf8"
+                    )
                   : "";
 
               await this.updateCacheForActiveWallet(
@@ -1872,14 +1926,15 @@ export class KeyRing {
             }
 
             if (activeWalletAddress && hasFullCache) {
-              const consistencyResult = await this.cacheManager.checkConsistency(
-                currentChainId,
-                walletIds,
-                walletNames,
-                activeWalletId,
-                activeWalletAddress,
-                isCardano
-              );
+              const consistencyResult =
+                await this.cacheManager.checkConsistency(
+                  currentChainId,
+                  walletIds,
+                  walletNames,
+                  activeWalletId,
+                  activeWalletAddress,
+                  isCardano
+                );
 
               if (!consistencyResult.isConsistent) {
                 await this.clearAllAddressCaches();

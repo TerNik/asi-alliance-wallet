@@ -35,6 +35,7 @@
     "@ethersproject/transactions": "^5.7.0",
     "@ethersproject/wallet": "^5.7.0",
     "@fetchai/wallet-types": "^0.2.0",
+    "@keplr-wallet/asi-chain": "0.12.12",
     "@keplr-wallet/cardano": "0.12.12",
     "@keplr-wallet/chain-validator": "0.12.12",
     "@keplr-wallet/common": "0.12.12",
