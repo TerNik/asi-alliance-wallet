@@ -37,8 +37,10 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
     const intl = useIntl();
     const navigate = useNavigate();
     const notification = useNotification();
+
     const {
       chainStore,
+      accountStore,
       keyRingStore,
       analyticsStore,
       chatStore,
@@ -46,6 +48,7 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
     } = useStore();
 
     const chainId = chainStore.current.chainId;
+    const accountInfo = accountStore.getAccount(chainId);
     const loadingIndicator = useLoadingIndicator();
 
     const { addressesById, isLoadingAddresses } = useWalletPickerAddressSync({
@@ -76,6 +79,7 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
           return require("@assets/svg/wireframe/google-logo.svg");
         }
       }
+
       return;
     };
 
@@ -93,6 +97,7 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
               intl.formatMessage({
                 id: "setting.keyring.unnamed-account",
               });
+
             const isCardanoNetwork = isCardanoChain(chainStore.current);
             const isCardanoSupportedWallet = walletSupportsCardano(keyStore);
             const walletId = keyStore.meta?.["__id__"] || "";
@@ -159,15 +164,29 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
                   )
                 }
                 subheading={(() => {
+                  if (keyStore.selected) {
+                    const isEvm =
+                      chainStore.current.features?.includes("evm") ?? false;
+                    const addr = isEvm
+                      ? (accountInfo as any).ethereumHexAddress ||
+                        accountInfo.bech32Address
+                      : accountInfo.bech32Address;
+
+                    return formatAddress(addr);
+                  }
+
                   switch (pickerItemState.kind) {
                     case "address":
                       return formatAddress(pickerItemState.address);
+
                     case "unsupported":
                       return pickerItemState.reason === "cardano_unsupported"
                         ? "Not supported on Cardano"
                         : "";
+
                     case "loading":
                       return <Skeleton height="14px" width="120px" />;
+
                     case "empty":
                       return "";
                   }
@@ -187,16 +206,18 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
                     : async (e: any) => {
                         e.preventDefault();
                         loadingIndicator.setIsLoading("keyring", true);
+
                         try {
                           await ensureChainCompatibleBeforeSelectKeyStore(
                             chainStore,
                             keyStore
                           );
+
                           await keyRingStore.changeKeyRing(i);
                           analyticsStore.logEvent("change_wallet_click");
 
                           await requestKeyringSurfacesSyncBroadcast();
-                          loadingIndicator.setIsLoading("keyring", false);
+
                           chatStore.userDetailsStore.resetUser();
                           proposalStore.resetProposals();
                           chatStore.messagesStore.resetChatList();
@@ -204,12 +225,14 @@ export const SetKeyRingPage: FunctionComponent<SetKeyRingProps> = observer(
                             false
                           );
                           messageAndGroupListenerUnsubscribe();
+
                           navigate(navigateTo);
                           onItemSelect?.();
                         } catch (e: any) {
                           console.warn(
                             `Failed to change keyring: ${e.message}`
                           );
+                        } finally {
                           loadingIndicator.setIsLoading("keyring", false);
                         }
                       }

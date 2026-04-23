@@ -7,6 +7,7 @@ export interface KeyStoreMetaKnown {
   name?: string;
   nameByChain?: string;
   cardano?: string;
+  asiChainAddress?: string;
 }
 
 export interface KeyStore {

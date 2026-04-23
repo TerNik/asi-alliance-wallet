@@ -3,6 +3,8 @@ import { useNotification } from "@components/notification";
 import { ToolTip } from "@components/tooltip";
 import { WalletError } from "@keplr-wallet/router";
 import { WalletStatus } from "@keplr-wallet/stores";
+import { WalletConfig } from "@keplr-wallet/stores/build/chat/user-details";
+import { isASIChain as isASIChainPredicate } from "@keplr-wallet/asi-chain";
 import {
   formatAddress,
   separateNumericAndDenom,
@@ -17,12 +19,15 @@ import { useStore } from "../../../stores";
 import { addressCacheStore } from "../../../utils/address-cache-store";
 import { Balances } from "../balances";
 import style from "../style.module.scss";
-import { WalletConfig } from "@keplr-wallet/stores/build/chat/user-details";
 import { observer } from "mobx-react-lite";
 import { txType } from "./constants";
 import { Skeleton } from "@components-v2/skeleton-loader";
 import { fetchProposalNodes } from "../../activity/utils";
 import { ResponsiveAddressView } from "./address-view";
+// TODO: refactor components
+// import { WalletContent } from "./wallet-content";
+// import { PendingTransactions } from "./pending-transactions";
+// import { RewardsCard } from "./rewards-card";
 
 export const WalletDetailsView = observer(
   ({
@@ -89,6 +94,7 @@ export const WalletDetailsView = observer(
       keyRingStore.keyRingType,
       current.chainId,
     ]);
+
     const navigate = useNavigate();
     const accountInfo = accountStore.getAccount(chainStore.current.chainId);
 
@@ -111,19 +117,27 @@ export const WalletDetailsView = observer(
     const notification = useNotification();
 
     const isEvm = chainStore.current.features?.includes("evm") ?? false;
+    const isASIChain = isASIChainPredicate(chainStore.current);
+
     const selectedWalletId =
       keyRingStore.multiKeyStoreInfo.find((ks) => ks.selected)?.meta?.[
         "__id__"
       ] || "";
+
     const cachedSelectedAddress =
       selectedWalletId && chainStore.current.chainId
         ? addressCacheStore.getCache(chainStore.current.chainId)[
             selectedWalletId
           ] || ""
         : "";
+
     const selectedKeyStore = keyRingStore.multiKeyStoreInfo.find(
       (ks) => ks.selected
     );
+
+    const asiChainAddress =
+      (isASIChain && selectedKeyStore?.meta?.["asiChainAddress"]) || "";
+
     const displayAccountName = (() => {
       const meta = selectedKeyStore?.meta;
       if (!meta) return "";
@@ -143,16 +157,19 @@ export const WalletDetailsView = observer(
         );
       }
     })();
+
     const displayBech32Address =
       accountInfo.walletStatus === WalletStatus.Loaded
         ? accountInfo.bech32Address
         : cachedSelectedAddress;
+
     const displayEvmAddress =
       isEvm || accountInfo.hasEthereumHexAddress
         ? accountInfo.walletStatus === WalletStatus.Loaded
           ? accountInfo.ethereumHexAddress
           : cachedSelectedAddress || accountInfo.ethereumHexAddress
         : "";
+
     const copyAddress = useCallback(
       async (address: string) => {
         if (accountInfo.walletStatus === WalletStatus.Loaded) {
@@ -174,22 +191,23 @@ export const WalletDetailsView = observer(
       [accountInfo.walletStatus, notification, intl]
     );
 
+    const effectiveAddress = isASIChain
+      ? asiChainAddress
+      : accountInfo.bech32Address;
+
     const accountOrChainChanged =
-      activityStore.getAddress !== accountInfo.bech32Address ||
+      activityStore.getAddress !== effectiveAddress ||
       activityStore.getChainId !== current.chainId;
 
     useEffect(() => {
-      /*  this is required because accountInit sets the nodes on reload, 
-          so we wait for accountInit to set the proposal nodes and then we 
-          store the proposal votes from api in activity store */
-      if (!isEvm) {
+      if (!isEvm && !isASIChain) {
         const timeout = setTimeout(async () => {
           const nodes = activityStore.sortedNodesProposals;
           if (nodes.length === 0) {
             const nodes = await fetchProposalNodes(
               "",
               current.chainId,
-              accountInfo.bech32Address
+              effectiveAddress
             );
             if (nodes.length) {
               nodes.forEach((node: any) => activityStore.addProposalNode(node));
@@ -202,27 +220,29 @@ export const WalletDetailsView = observer(
         };
       }
     }, [
-      accountInfo.bech32Address,
+      effectiveAddress,
       current.chainId,
       accountOrChainChanged,
       activityStore,
       isEvm,
+      isASIChain,
     ]);
 
     useEffect(() => {
       if (accountOrChainChanged) {
-        activityStore.setAddress(accountInfo.bech32Address);
+        activityStore.setAddress(effectiveAddress);
         activityStore.setChainId(current.chainId);
       }
-      if (accountInfo.bech32Address !== "" && !isEvm) {
+      if (effectiveAddress !== "" && !isEvm && !isASIChain) {
         activityStore.accountInit();
       }
     }, [
-      accountInfo.bech32Address,
+      effectiveAddress,
       current.chainId,
       accountOrChainChanged,
       activityStore,
       isEvm,
+      isASIChain,
     ]);
 
     useEffect(() => {
@@ -234,12 +254,14 @@ export const WalletDetailsView = observer(
 
     const queries = queriesStore.get(current.chainId);
 
-    const rewards = queries.cosmos.queryRewards.getQueryBech32Address(
-      accountInfo.bech32Address
-    );
+    const rewards = !isASIChain
+      ? queries.cosmos.queryRewards.getQueryBech32Address(
+          accountInfo.bech32Address
+        )
+      : undefined;
 
-    const stakableReward = rewards.stakableReward;
-    const rewardsBal = stakableReward.toString();
+    const stakableReward = rewards?.stakableReward;
+    const rewardsBal = stakableReward?.toString() ?? "0";
 
     const { numericPart: rewardsBalNumber } =
       separateNumericAndDenom(rewardsBal);
@@ -262,6 +284,7 @@ export const WalletDetailsView = observer(
             className={style["chain-select"]}
           >
             {formatAddress(current.chainName)}
+            {/* {formatAddress(current.chainName)} TODO check this*/}
             <img
               src={require("@assets/svg/wireframe/chevron-down.svg")}
               alt=""
@@ -353,59 +376,74 @@ export const WalletDetailsView = observer(
                   </ToolTip>
                 )}
               </div>
-              {accountInfo.walletStatus !== WalletStatus.Rejected && !isEvm && (
-                <React.Fragment>
-                  {displayBech32Address ? (
-                    <div
-                      className={style["wallet-address-row"]}
-                      onClick={() => copyAddress(displayBech32Address)}
-                    >
-                      <div className={style["wallet-address-content"]}>
-                        <Address
-                          maxCharacters={16}
-                          lineBreakBeforePrefix={false}
-                          tooltipAddress={displayBech32Address}
-                          childrenClassName={
-                            style["wallet-address-tooltip-trigger"]
-                          }
-                          childrenStyle={{ opacity: 1 }}
-                        >
-                          <div className={style["wallet-address-inline"]}>
-                            <span className={style["wallet-address-prefix"]}>
-                              {splitBech32(displayBech32Address).prefix}
-                            </span>
-                            <div className={style["wallet-address-text"]}>
-                              <div
-                                ref={bech32TailMeasureRef}
-                                className={style["wallet-address-tail-measure"]}
-                              >
-                                <ResponsiveAddressView
-                                  containerRef={bech32TailMeasureRef}
-                                  address={
-                                    splitBech32(displayBech32Address).rest
+
+              {/*
+                TODO(merge-refactor): refactor WalletContent, ASIChainAddressDisplay / Bech32AddressDisplay / EVMAddressDisplay
+              */}
+
+              {accountInfo.walletStatus !== WalletStatus.Rejected &&
+                !isEvm &&
+                !isASIChain && (
+                  <React.Fragment>
+                    {displayBech32Address ? (
+                      <div
+                        className={style["wallet-address-row"]}
+                        onClick={() => copyAddress(displayBech32Address)}
+                      >
+                        <div className={style["wallet-address-content"]}>
+                          <Address
+                            maxCharacters={16}
+                            lineBreakBeforePrefix={false}
+                            tooltipAddress={displayBech32Address}
+                            childrenClassName={
+                              style["wallet-address-tooltip-trigger"]
+                            }
+                            childrenStyle={{ opacity: 1 }}
+                          >
+                            <div className={style["wallet-address-inline"]}>
+                              <span className={style["wallet-address-prefix"]}>
+                                {splitBech32(displayBech32Address).prefix}
+                              </span>
+                              <div className={style["wallet-address-text"]}>
+                                <div
+                                  ref={bech32TailMeasureRef}
+                                  className={
+                                    style["wallet-address-tail-measure"]
                                   }
-                                />
+                                >
+                                  <ResponsiveAddressView
+                                    containerRef={bech32TailMeasureRef}
+                                    address={
+                                      splitBech32(displayBech32Address).rest
+                                    }
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </Address>
+                          </Address>
+                        </div>
+                        <div
+                          className={style["wallet-address-copy-slot"]}
+                          aria-hidden="true"
+                        >
+                          <img
+                            src={require("@assets/svg/wireframe/copyGrey.svg")}
+                            alt=""
+                          />
+                        </div>
                       </div>
-                      <div
-                        className={style["wallet-address-copy-slot"]}
-                        aria-hidden="true"
-                      >
-                        <img
-                          src={require("@assets/svg/wireframe/copyGrey.svg")}
-                          alt=""
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <Skeleton height="21px" />
-                  )}
-                </React.Fragment>
-              )}
+                    ) : (
+                      <Skeleton height="21px" />
+                    )}
+                  </React.Fragment>
+                )}
+
+              {/*
+                TODO: refactor ASI rendering
+              */}
+
               {accountInfo.walletStatus !== WalletStatus.Rejected &&
+                !isASIChain &&
                 (isEvm || accountInfo.hasEthereumHexAddress) && (
                   <div
                     className={style["wallet-address-row"]}
@@ -500,6 +538,10 @@ export const WalletDetailsView = observer(
           </div>
         ) : null}
 
+        {/*
+          TODO: refactor PendingTransactions
+        */}
+
         {Object.values(activityStore.getPendingTxn).length > 0 && (
           <div
             className={style["wallet-detail-card"]}
@@ -526,7 +568,9 @@ export const WalletDetailsView = observer(
             </div>
           </div>
         )}
-
+        {/*
+          TODO: refactor RewardsCard
+        */}
         {rewardsBalNumber > 0 && (
           <div
             className={style["rewards-card"]}
@@ -551,7 +595,6 @@ export const WalletDetailsView = observer(
             <i key="next" className="fas fa-chevron-right" />
           </div>
         )}
-
         <Balances tokenState={tokenState} />
       </div>
     );

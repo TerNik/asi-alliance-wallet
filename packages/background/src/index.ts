@@ -18,6 +18,7 @@ import * as Messaging from "./messaging/internal";
 import * as AddressBook from "./address-book/internal";
 import * as SidePanel from "./side-panel/internal";
 import * as Cardano from "./cardano/internal";
+import { ASIChainService } from "@keplr-wallet/asi-chain";
 import { KVStore } from "@keplr-wallet/common";
 import { ChainInfo } from "@keplr-wallet/types";
 import { CommonCrypto } from "./keyring/types";
@@ -124,11 +125,14 @@ export function init(
     storeCreator("cardano.tx-history")
   );
 
+  const asiChainService = new ASIChainService();
+
   const keyRingService = new KeyRing.KeyRingService(
     storeCreator("keyring"),
     embedChainInfos,
     commonCrypto,
-    cardanoService
+    cardanoService,
+    asiChainService
   );
 
   const autoLockAccountService = new AutoLocker.AutoLockAccountService(

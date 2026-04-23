@@ -329,3 +329,74 @@
   width: 100%;
   overflow: hidden;
 }
+
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-weight: 400;
+}
+
+.wallet-container {
+  display: flex;
+  column-gap: 10px;
+  flex-direction: column;
+  width: 85%;
+}
+
+.wallet-container-rejected {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.address-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 400;
+}
+
+.icns-mark-container {
+  display: flex;
+  align-items: center;
+  height: 1px;
+}
+
+.icns-mark-image {
+  width: 24px;
+  height: 24px;
+  margin-left: 2px;
+}
+
+.pending-txn-card {
+  margin-top: 12px;
+  gap: 2px;
+}
+
+.pending-txn-spinner {
+  display: flex;
+  align-items: center;
+}
+
+.copy-icon {
+  cursor: pointer;
+}
+
+.evm-address-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 6px;
+}
+
+.noDataContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #808da0;
+  font-size: 12px;
+  padding: 24px 0;
+}

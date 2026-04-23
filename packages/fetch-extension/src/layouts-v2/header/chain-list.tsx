@@ -5,10 +5,23 @@ import { TabsPanel } from "@components-v2/tabs/tabsPanel-2";
 import { useConfirm } from "@components/confirm";
 import { messageAndGroupListenerUnsubscribe } from "@graphQL/messages-api";
 import { formatAddress } from "@utils/format";
-import { walletSupportsCardano } from "@utils/index";
+import {
+  walletSupportsCardano,
+  filterCosmosChains,
+  filterEvmChains,
+  filterASIChains,
+  filterBetaChains,
+  filterCardanoChains,
+  excludeTestnets,
+} from "@utils/index";
 import classnames from "classnames";
 import { observer } from "mobx-react-lite";
-import React, { FunctionComponent, useState, useMemo } from "react";
+import React, {
+  FunctionComponent,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import { useIntl } from "react-intl";
 import { useNavigate } from "react-router";
 import { useStore } from "../../stores";
@@ -17,10 +30,16 @@ import { getFilteredChainValues } from "@utils/filters";
 import { NotificationOption } from "@components-v2/notification-option";
 import { NoResults } from "@components-v2/no-results";
 import { useLoadingIndicator } from "@components/loading-indicator";
+
+// Pre-require assets so users never see blank spaces while SVGs load.
+const checkIcon = require("@assets/svg/wireframe/check.svg");
+const closeIcon = require("@assets/svg/wireframe/closeImage.svg");
+
 interface ChainListProps {
   showAddress?: boolean;
   setIsSelectNetOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 }
+
 export const ChainList: FunctionComponent<ChainListProps> = observer(
   ({ showAddress, setIsSelectNetOpen }) => {
     const {
@@ -31,9 +50,11 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
       accountStore,
       keyRingStore,
     } = useStore();
+
     const [cosmosSearchTerm, setCosmosSearchTerm] = useState("");
     const [evmSearchTerm, setEvmSearchTerm] = useState("");
     const [cardanoSearchTerm, setCardanoSearchTerm] = useState("");
+    const [asiChainSearchTerm, setASIChainSearchTerm] = useState("");
     const [clickedChain, setClickedChain] = useState(
       chainStore.current.chainId
     );
@@ -43,31 +64,26 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
     const confirm = useConfirm();
     const loadingIndicator = useLoadingIndicator();
 
-    const mainChainList = chainStore.chainInfosInUI.filter(
-      (chainInfo: any) =>
-        !chainInfo.raw.beta &&
-        !chainInfo.raw.features?.includes("evm") &&
-        !chainInfo.raw.features?.includes("cardano")
-    );
+    // ── Chain lists (using centralised filters) ──────────────────────────
+    const allChainsInUI = chainStore.chainInfosInUI;
 
-    const evmChainList = chainStore.chainInfosInUI.filter((chainInfo: any) =>
-      chainInfo.raw.features?.includes("evm")
-    );
+    const mainChainList = filterCosmosChains(allChainsInUI);
+    const evmChainList = filterEvmChains(allChainsInUI);
+    const asiChainList = filterASIChains(allChainsInUI);
+    const betaChainList = filterBetaChains(allChainsInUI);
+    const cardanoChainList = filterCardanoChains(allChainsInUI);
 
-    const betaChainList = chainStore.chainInfosInUI.filter(
-      (chainInfo: any) => chainInfo.raw.beta
-    );
+    const cosmosList = chainStore.showTestnet
+      ? mainChainList
+      : excludeTestnets(mainChainList);
 
-    const cosmosMainList = mainChainList.filter(
-      (chainInfo: any) => chainInfo.raw.type !== "testnet"
-    );
+    const evmList = chainStore.showTestnet
+      ? evmChainList
+      : excludeTestnets(evmChainList);
 
-    const evmMainList = evmChainList.filter(
-      (chainInfo: any) => chainInfo.raw.type !== "testnet"
-    );
-
-    const cosmosList = chainStore.showTestnet ? mainChainList : cosmosMainList;
-    const evmList = chainStore.showTestnet ? evmChainList : evmMainList;
+    const cardanoList = chainStore.showTestnet
+      ? cardanoChainList
+      : excludeTestnets(cardanoChainList);
 
     const isCardanoSupportedWallet = useMemo(() => {
       const selectedKeyStore = keyRingStore.multiKeyStoreInfo.find(
@@ -76,34 +92,151 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
       return walletSupportsCardano(selectedKeyStore);
     }, [keyRingStore.multiKeyStoreInfo]);
 
-    const cardanoChainList = chainStore.chainInfosInUI.filter(
-      (chainInfo: any) => chainInfo.features?.includes("cardano")
+    // ── Pre-computed helpers ─────────────────────────────────────────────
+
+    /** Resolve left image for a chain card (icon URL or first-letter fallback). */
+    const getChainIcon = useCallback((chainInfo: any) => {
+      if (chainInfo.raw.chainSymbolImageUrl !== undefined) {
+        return chainInfo.raw.chainSymbolImageUrl;
+      }
+
+      return chainInfo.raw.chainName
+        ? chainInfo.raw.chainName[0].toUpperCase()
+        : "";
+    }, []);
+
+    /** Resolve left image style. */
+    const getChainIconStyle = useCallback(
+      (chainInfo: any) => ({
+        backgroundColor: !chainInfo.raw.chainSymbolImageUrl
+          ? "#dddfdf"
+          : "transparent",
+      }),
+      []
     );
-    const cardanoMainList = cardanoChainList.filter(
-      (chainInfo: any) => chainInfo.raw.type !== "testnet"
+
+    /** Get the formatted bech32 address for display, or null. */
+    const getFormattedAddress = useCallback(
+      (chainId: string): string | null => {
+        if (!showAddress) return null;
+        return formatAddress(accountStore.getAccount(chainId).bech32Address);
+      },
+      [showAddress, accountStore]
     );
-    const cardanoList = chainStore.showTestnet
-      ? cardanoChainList
-      : cardanoMainList;
+
+    /** Shared chain-select handler for all tabs. */
+    const handleChainSelect = useCallback(
+      (chainId: string, chainName: string) => {
+        setClickedChain(chainId);
+
+        let properties = {};
+        if (chainId !== chainStore.current.chainId) {
+          properties = {
+            chainId: chainStore.current.chainId,
+            chainName: chainStore.current.chainName,
+            toChainId: chainId,
+            toChainName: chainName,
+          };
+        }
+
+        chainStore.selectChain(chainId);
+        chainStore.saveLastViewChainId();
+        chatStore.userDetailsStore.resetUser();
+        proposalStore.resetProposals();
+        chatStore.messagesStore.resetChatList();
+        chatStore.messagesStore.setIsChatSubscriptionActive(false);
+        messageAndGroupListenerUnsubscribe();
+
+        if (Object.values(properties).length > 0) {
+          analyticsStore.logEvent("chain_change_click", properties);
+        }
+
+        if (setIsSelectNetOpen) {
+          setIsSelectNetOpen(false);
+        }
+      },
+      [chainStore, chatStore, proposalStore, analyticsStore, setIsSelectNetOpen]
+    );
+
+    /** Navigate to manage-networks with analytics. */
+    const handleManageNetworks = useCallback(
+      (e: any) => {
+        e.preventDefault();
+        analyticsStore.logEvent("manage_networks_click", {
+          pageName: "Home",
+        });
+        navigate("/manage-networks");
+      },
+      [analyticsStore, navigate]
+    );
+
+    // ── Shared render helpers ────────────────────────────────────────────
+
+    const renderManageNetworksButton = () => (
+      <ButtonV2
+        styleProps={{
+          height: "48px",
+          marginTop: "0px",
+          fontSize: "14px",
+        }}
+        onClick={handleManageNetworks}
+        text={"Manage networks"}
+      />
+    );
+
+    const renderTestnetToggle = () => (
+      <NotificationOption
+        name="Show testnet"
+        isChecked={chainStore.showTestnet}
+        handleOnChange={() =>
+          chainStore.toggleShowTestnet(!chainStore.showTestnet)
+        }
+        cardStyles={{
+          background: "transparent",
+          padding: "0px",
+          marginBottom: "24px",
+        }}
+      />
+    );
+
+    const renderChainCard = useCallback(
+      (chainInfo: any, index: number) => {
+        const chainId = chainInfo.raw.chainId;
+        const chainName = chainInfo.raw.chainName;
+        const formattedAddress = getFormattedAddress(chainId);
+        const isSelected = clickedChain === chainId;
+
+        return (
+          <Card
+            key={index}
+            leftImage={getChainIcon(chainInfo)}
+            heading={chainName}
+            isActive={chainId === chainStore.current.chainId}
+            leftImageStyle={getChainIconStyle(chainInfo)}
+            rightContent={isSelected ? checkIcon : ""}
+            onClick={() => handleChainSelect(chainId, chainName)}
+            subheading={formattedAddress}
+          />
+        );
+      },
+      [
+        clickedChain,
+        chainStore.current.chainId,
+        getChainIcon,
+        getChainIconStyle,
+        getFormattedAddress,
+        handleChainSelect,
+      ]
+    );
+
+    // ── Tabs ─────────────────────────────────────────────────────────────
 
     const tabs = [
       {
         id: "Cosmos",
         component: (
-          <div>
-            <NotificationOption
-              name="Show Testnet"
-              isChecked={chainStore.showTestnet}
-              handleOnChange={() =>
-                chainStore.toggleShowTestnet(!chainStore.showTestnet)
-              }
-              cardStyles={{
-                background: "transparent",
-                padding: "0px",
-                marginBottom: "24px",
-              }}
-            />
-
+          <div className={style["chainTabContent"]}>
+            {renderTestnetToggle()}
             <SearchBar
               onSearchTermChange={setCosmosSearchTerm}
               searchTerm={cosmosSearchTerm}
@@ -111,83 +244,8 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
               itemsStyleProp={{ height: "100%" }}
               filterFunction={getFilteredChainValues}
               emptyContent={<NoResults styles={{ height: "200px" }} />}
-              midElement={
-                <ButtonV2
-                  styleProps={{
-                    height: "48px",
-                    marginTop: "0px",
-                    fontSize: "14px",
-                  }}
-                  onClick={(e: any) => {
-                    e.preventDefault();
-                    analyticsStore.logEvent("manage_networks_click", {
-                      pageName: "Home",
-                    });
-                    navigate("/manage-networks");
-                  }}
-                  text={"Manage Networks"}
-                />
-              }
-              renderResult={(chainInfo, index) => (
-                <Card
-                  key={index}
-                  leftImage={
-                    chainInfo.raw.chainSymbolImageUrl !== undefined
-                      ? chainInfo.raw.chainSymbolImageUrl
-                      : chainInfo.raw.chainName
-                      ? chainInfo.raw.chainName[0].toUpperCase()
-                      : ""
-                  }
-                  heading={chainInfo.raw.chainName}
-                  isActive={
-                    chainInfo.raw.chainId === chainStore.current.chainId
-                  }
-                  leftImageStyle={{
-                    backgroundColor: !chainInfo.raw.chainSymbolImageUrl
-                      ? "#dddfdf"
-                      : "transparent",
-                  }}
-                  rightContent={
-                    clickedChain === chainInfo.raw.chainId
-                      ? require("@assets/svg/wireframe/check.svg")
-                      : ""
-                  }
-                  onClick={() => {
-                    setClickedChain(chainInfo.raw.chainId);
-                    let properties = {};
-                    if (chainInfo.raw.chainId !== chainStore.current.chainId) {
-                      properties = {
-                        chainId: chainStore.current.chainId,
-                        chainName: chainStore.current.chainName,
-                        toChainId: chainInfo.raw.chainId,
-                        toChainName: chainInfo.raw.chainName,
-                      };
-                    }
-                    chainStore.selectChain(chainInfo.raw.chainId);
-                    chainStore.saveLastViewChainId();
-                    chatStore.userDetailsStore.resetUser();
-                    proposalStore.resetProposals();
-                    chatStore.messagesStore.resetChatList();
-                    chatStore.messagesStore.setIsChatSubscriptionActive(false);
-                    messageAndGroupListenerUnsubscribe();
-
-                    if (Object.values(properties).length > 0) {
-                      analyticsStore.logEvent("chain_change_click", properties);
-                    }
-                    if (setIsSelectNetOpen) {
-                      setIsSelectNetOpen(false);
-                    }
-                  }}
-                  subheading={
-                    showAddress
-                      ? formatAddress(
-                          accountStore.getAccount(chainInfo.raw.chainId)
-                            .bech32Address
-                        )
-                      : null
-                  }
-                />
-              )}
+              midElement={renderManageNetworksButton()}
+              renderResult={renderChainCard}
             />
             {cosmosSearchTerm === "" && (
               <React.Fragment>
@@ -195,90 +253,42 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
                   <div className={style["chain-title"]}>Beta support</div>
                 )}
 
-                {betaChainList.map((chainInfo: any) => (
-                  <Card
-                    key={chainInfo.raw.chainId}
-                    leftImage={
-                      chainInfo.raw.chainSymbolImageUrl !== undefined
-                        ? chainInfo.raw.chainSymbolImageUrl
-                        : chainInfo.raw.chainName
-                        ? chainInfo.raw.chainName[0].toUpperCase()
-                        : ""
-                    }
-                    heading={chainInfo.raw.chainName}
-                    isActive={
-                      chainInfo.raw.chainId === chainStore.current.chainId
-                    }
-                    leftImageStyle={{
-                      backgroundColor: !chainInfo.raw.chainSymbolImageUrl
-                        ? "#dddfdf"
-                        : "transparent",
-                    }}
-                    rightContent={require("@assets/svg/wireframe/closeImage.svg")}
-                    rightContentStyle={{ height: "24px", width: "24px" }}
-                    rightContentOnClick={async (e: any) => {
-                      e.preventDefault();
-                      e.stopPropagation();
+                {betaChainList.map((chainInfo: any) => {
+                  const chainId = chainInfo.raw.chainId;
+                  const chainName = chainInfo.raw.chainName;
+                  const formattedAddress = getFormattedAddress(chainId);
 
-                      if (
-                        await confirm.confirm({
-                          paragraph: intl.formatMessage(
-                            {
-                              id: "chain.remove.confirm.paragraph",
-                            },
-                            {
-                              chainName: chainInfo.raw.chainName,
-                            }
-                          ),
-                        })
-                      ) {
-                        loadingIndicator.setIsLoading("remove-chain", true);
-                        await chainStore.removeChainInfo(chainInfo.raw.chainId);
-                        loadingIndicator.setIsLoading("remove-chain", false);
-                      }
-                    }}
-                    onClick={() => {
-                      let properties = {};
-                      if (
-                        chainInfo.raw.chainId !== chainStore.current.chainId
-                      ) {
-                        properties = {
-                          chainId: chainStore.current.chainId,
-                          chainName: chainStore.current.chainName,
-                          toChainId: chainInfo.raw.chainId,
-                          toChainName: chainInfo.raw.chainName,
-                        };
-                      }
-                      chainStore.selectChain(chainInfo.raw.chainId);
-                      chainStore.saveLastViewChainId();
-                      chatStore.userDetailsStore.resetUser();
-                      proposalStore.resetProposals();
-                      chatStore.messagesStore.resetChatList();
-                      chatStore.messagesStore.setIsChatSubscriptionActive(
-                        false
-                      );
-                      messageAndGroupListenerUnsubscribe();
-                      // navigate("/");
-                      if (Object.values(properties).length > 0) {
-                        analyticsStore.logEvent(
-                          "chain_change_click",
-                          properties
-                        );
-                      }
-                      if (setIsSelectNetOpen) {
-                        setIsSelectNetOpen(false);
-                      }
-                    }}
-                    subheading={
-                      showAddress
-                        ? formatAddress(
-                            accountStore.getAccount(chainInfo.raw.chainId)
-                              .bech32Address
-                          )
-                        : null
-                    }
-                  />
-                ))}
+                  return (
+                    <Card
+                      key={chainId}
+                      leftImage={getChainIcon(chainInfo)}
+                      heading={chainName}
+                      isActive={chainId === chainStore.current.chainId}
+                      leftImageStyle={getChainIconStyle(chainInfo)}
+                      rightContent={closeIcon}
+                      rightContentStyle={{ height: "24px", width: "24px" }}
+                      rightContentOnClick={async (e: any) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        if (
+                          await confirm.confirm({
+                            paragraph: intl.formatMessage(
+                              { id: "chain.remove.confirm.paragraph" },
+                              { chainName }
+                            ),
+                          })
+                        ) {
+                          loadingIndicator.setIsLoading("remove-chain", true);
+                          await chainStore.removeChainInfo(chainId);
+                          loadingIndicator.setIsLoading("remove-chain", false);
+                        }
+                      }}
+                      onClick={() => handleChainSelect(chainId, chainName)}
+                      subheading={formattedAddress}
+                    />
+                  );
+                })}
               </React.Fragment>
             )}
 
@@ -302,19 +312,8 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
       {
         id: "EVM",
         component: (
-          <div>
-            <NotificationOption
-              name="Show Testnet"
-              isChecked={chainStore.showTestnet}
-              handleOnChange={() =>
-                chainStore.toggleShowTestnet(!chainStore.showTestnet)
-              }
-              cardStyles={{
-                background: "transparent",
-                padding: "0px",
-                marginBottom: "24px",
-              }}
-            />
+          <div className={style["chainTabContent"]}>
+            {renderTestnetToggle()}
             <SearchBar
               searchTerm={evmSearchTerm}
               onSearchTermChange={setEvmSearchTerm}
@@ -322,211 +321,65 @@ export const ChainList: FunctionComponent<ChainListProps> = observer(
               itemsStyleProp={{ height: "100%" }}
               filterFunction={getFilteredChainValues}
               emptyContent={<NoResults styles={{ height: "200px" }} />}
-              midElement={
-                <ButtonV2
-                  styleProps={{
-                    height: "48px",
-                    marginTop: "0px",
-                    fontSize: "14px",
-                  }}
-                  onClick={(e: any) => {
-                    e.preventDefault();
-                    analyticsStore.logEvent("manage_networks_click", {
-                      pageName: "Home",
-                    });
-                    navigate("/manage-networks");
-                  }}
-                  text={"Manage Networks"}
-                />
-              }
-              renderResult={(chainInfo, index) => (
-                <Card
-                  key={index}
-                  leftImage={
-                    chainInfo.raw.chainSymbolImageUrl !== undefined
-                      ? chainInfo.raw.chainSymbolImageUrl
-                      : chainInfo.raw.chainName
-                      ? chainInfo.raw.chainName[0].toUpperCase()
-                      : ""
-                  }
-                  heading={chainInfo.raw.chainName}
-                  isActive={
-                    chainInfo.raw.chainId === chainStore.current.chainId
-                  }
-                  leftImageStyle={{
-                    backgroundColor: !chainInfo.raw.chainSymbolImageUrl
-                      ? "#dddfdf"
-                      : "transparent",
-                  }}
-                  rightContent={
-                    clickedChain === chainInfo.raw.chainId
-                      ? require("@assets/svg/wireframe/check.svg")
-                      : ""
-                  }
-                  onClick={() => {
-                    setClickedChain(chainInfo.raw.chainId);
-                    let properties = {};
-                    if (chainInfo.raw.chainId !== chainStore.current.chainId) {
-                      properties = {
-                        chainId: chainStore.current.chainId,
-                        chainName: chainStore.current.chainName,
-                        toChainId: chainInfo.raw.chainId,
-                        toChainName: chainInfo.raw.chainName,
-                      };
-                    }
-                    chainStore.selectChain(chainInfo.raw.chainId);
-                    chainStore.saveLastViewChainId();
-                    chatStore.userDetailsStore.resetUser();
-                    proposalStore.resetProposals();
-                    chatStore.messagesStore.resetChatList();
-                    chatStore.messagesStore.setIsChatSubscriptionActive(false);
-                    messageAndGroupListenerUnsubscribe();
-
-                    if (Object.values(properties).length > 0) {
-                      analyticsStore.logEvent("chain_change_click", properties);
-                    }
-                    if (setIsSelectNetOpen) {
-                      setIsSelectNetOpen(false);
-                    }
-                  }}
-                  subheading={
-                    showAddress
-                      ? formatAddress(
-                          accountStore.getAccount(chainInfo.raw.chainId)
-                            .bech32Address
-                        )
-                      : null
-                  }
-                />
-              )}
+              midElement={renderManageNetworksButton()}
+              renderResult={renderChainCard}
             />
           </div>
         ),
       },
     ];
 
-    if (true) {
-      tabs.push({
-        id: "Cardano",
-        component: (
-          <div>
-            {isCardanoSupportedWallet ? (
-              <React.Fragment>
-                <NotificationOption
-                  name="Show testnet"
-                  isChecked={chainStore.showTestnet}
-                  handleOnChange={() =>
-                    chainStore.toggleShowTestnet(!chainStore.showTestnet)
-                  }
-                  cardStyles={{
-                    background: "transparent",
-                    padding: "0px",
-                    marginBottom: "24px",
-                  }}
-                />
-                <SearchBar
-                  searchTerm={cardanoSearchTerm}
-                  onSearchTermChange={setCardanoSearchTerm}
-                  valuesArray={cardanoList}
-                  itemsStyleProp={{ height: "100%" }}
-                  filterFunction={getFilteredChainValues}
-                  emptyContent={<NoResults styles={{ height: "200px" }} />}
-                  midElement={
-                    <ButtonV2
-                      styleProps={{
-                        height: "48px",
-                        marginTop: "0px",
-                        fontSize: "14px",
-                      }}
-                      onClick={(e: any) => {
-                        e.preventDefault();
-                        analyticsStore.logEvent("manage_networks_click", {
-                          pageName: "Home",
-                        });
-                        navigate("/manage-networks");
-                      }}
-                      text={"Manage networks"}
-                    />
-                  }
-                  renderResult={(chainInfo, index) => (
-                    <Card
-                      key={index}
-                      leftImage={
-                        chainInfo.raw.chainSymbolImageUrl !== undefined
-                          ? chainInfo.raw.chainSymbolImageUrl
-                          : chainInfo.raw.chainName
-                          ? chainInfo.raw.chainName[0].toUpperCase()
-                          : ""
-                      }
-                      heading={chainInfo.raw.chainName}
-                      isActive={
-                        chainInfo.raw.chainId === chainStore.current.chainId
-                      }
-                      rightContent={
-                        clickedChain === chainInfo.raw.chainId
-                          ? require("@assets/svg/wireframe/check.svg")
-                          : ""
-                      }
-                      onClick={() => {
-                        setClickedChain(chainInfo.raw.chainId);
-                        let properties = {};
-                        if (
-                          chainInfo.raw.chainId !== chainStore.current.chainId
-                        ) {
-                          properties = {
-                            chainId: chainStore.current.chainId,
-                            chainName: chainStore.current.chainName,
-                            toChainId: chainInfo.raw.chainId,
-                            toChainName: chainInfo.raw.chainName,
-                          };
-                        }
-                        chainStore.selectChain(chainInfo.raw.chainId);
-                        chainStore.saveLastViewChainId();
-                        chatStore.userDetailsStore.resetUser();
-                        proposalStore.resetProposals();
-                        chatStore.messagesStore.resetChatList();
-                        chatStore.messagesStore.setIsChatSubscriptionActive(
-                          false
-                        );
-                        messageAndGroupListenerUnsubscribe();
+    // ASI Chain tab – no testnet toggle (no testnet distinction for ASI yet)
+    tabs.push({
+      id: "ASI Chain",
+      component: (
+        <div className={style["chainTabContent"]}>
+          <SearchBar
+            searchTerm={asiChainSearchTerm}
+            onSearchTermChange={setASIChainSearchTerm}
+            valuesArray={asiChainList}
+            itemsStyleProp={{ height: "100%" }}
+            filterFunction={getFilteredChainValues}
+            emptyContent={<NoResults styles={{ height: "200px" }} />}
+            midElement={renderManageNetworksButton()}
+            renderResult={renderChainCard}
+          />
+        </div>
+      ),
+    });
 
-                        if (Object.values(properties).length > 0) {
-                          analyticsStore.logEvent(
-                            "chain_change_click",
-                            properties
-                          );
-                        }
-                        if (setIsSelectNetOpen) {
-                          setIsSelectNetOpen(false);
-                        }
-                      }}
-                      subheading={
-                        showAddress
-                          ? formatAddress(
-                              accountStore.getAccount(chainInfo.raw.chainId)
-                                .bech32Address
-                            )
-                          : null
-                      }
-                    />
-                  )}
-                />
-              </React.Fragment>
-            ) : (
-              <div className={style["unsupported-message"]}>
-                <div className={style["message-text"]}>
-                  Cardano networks are not supported with this seed phrase
-                  length
-                </div>
-                <div className={style["message-subtitle"]}>
-                  Please use a 24-word seed phrase to access Cardano networks
-                </div>
+    // Cardano tab
+    tabs.push({
+      id: "Cardano",
+      component: (
+        <div className={style["chainTabContent"]}>
+          {isCardanoSupportedWallet ? (
+            <React.Fragment>
+              {renderTestnetToggle()}
+              <SearchBar
+                searchTerm={cardanoSearchTerm}
+                onSearchTermChange={setCardanoSearchTerm}
+                valuesArray={cardanoList}
+                itemsStyleProp={{ height: "100%" }}
+                filterFunction={getFilteredChainValues}
+                emptyContent={<NoResults styles={{ height: "200px" }} />}
+                midElement={renderManageNetworksButton()}
+                renderResult={renderChainCard}
+              />
+            </React.Fragment>
+          ) : (
+            <div className={style["unsupported-message"]}>
+              <div className={style["message-text"]}>
+                Cardano networks are not supported with this seed phrase length
               </div>
-            )}
-          </div>
-        ),
-      });
-    }
+              <div className={style["message-subtitle"]}>
+                Please use a 24-word seed phrase to access Cardano networks
+              </div>
+            </div>
+          )}
+        </div>
+      ),
+    });
 
     return (
       <div className={style["chainListContainer"]}>

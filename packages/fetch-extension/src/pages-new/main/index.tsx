@@ -1,24 +1,26 @@
 import React, { FunctionComponent, useEffect, useRef, useState } from "react";
 
 import { HeaderLayout } from "@layouts-v2/header-layout";
-
-import { ButtonV2 } from "@components-v2/buttons/button";
-import { Dropdown } from "@components-v2/dropdown";
-import { useConfirm } from "@components/confirm";
-import { getWalletConfig } from "@graphQL/config-api";
-import { ChainList } from "@layouts-v2/header/chain-list";
-import { getJWT } from "@utils/auth";
 import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
-import { LineGraphView } from "../../components-v2/line-graph";
-import { AUTH_SERVER } from "../../config.ui.var";
-import { useStore } from "../../stores";
-import { SetKeyRingPage } from "../keyring-dev";
-import { LedgerAppModal } from "./ledger-app-modal";
-import { WalletDetailsView } from "./wallet-details";
-import { WalletOptions } from "./wallet-options";
+
+import { getWalletConfig } from "@graphQL/config-api";
+import { getJWT } from "@utils/auth";
+import { isASIChain } from "@keplr-wallet/asi-chain";
+
+import { useConfirm } from "@components/confirm";
 import { useLanguage } from "../../languages";
 import { useLoadingIndicator } from "@components/loading-indicator";
+import { useStore } from "../../stores";
+
+import { AUTH_SERVER } from "../../config.ui.var";
+import { LedgerAppModal } from "./ledger-app-modal";
+import { WalletDetailsView } from "./wallet-details";
+
+import { LineGraphOrNoData } from "./components/line-graph-or-no-data";
+import { ChainNetworkDropdown } from "./components/chain-network-dropdown";
+import { WalletDropdown } from "./components/wallet-dropdown";
+import { OptionsDropdown } from "./components/options-dropdown";
 
 export const MainPage: FunctionComponent = observer(() => {
   const [isSelectNetOpen, setIsSelectNetOpen] = useState(false);
@@ -74,9 +76,11 @@ export const MainPage: FunctionComponent = observer(() => {
     ? priceStore.getPrice(currentCoinGeckoId, fiatCurrency)
     : undefined;
 
-  /// Fetching wallet config info
   useEffect(() => {
     if (keyRingStore.keyRingType === "ledger") {
+      return;
+    }
+    if (isASIChain(chainStore.current)) {
       return;
     }
     getJWT(chainStore.current.chainId, AUTH_SERVER).then((res) => {
@@ -92,15 +96,15 @@ export const MainPage: FunctionComponent = observer(() => {
     chainStore.current.chainId,
     accountInfo.bech32Address,
     keyRingStore.keyRingType,
+    chatStore.userDetailsStore,
+    userState.accessToken,
   ]);
 
-  // hides the loader after current chain is switched
-  // to the added custom chain from /suggest page
   useEffect(() => {
     if (chainStore.selectedChainId === chainStore.current.chainId) {
       loadingIndicator.setIsLoading("chain-suggest-switch", false);
     }
-  }, [chainStore.selectedChainId, chainStore.current]);
+  }, [chainStore.selectedChainId, chainStore, loadingIndicator]);
 
   return (
     <HeaderLayout
@@ -114,71 +118,29 @@ export const MainPage: FunctionComponent = observer(() => {
         setIsSelectWalletOpen={setIsSelectWalletOpen}
         tokenState={tokenState}
       />
-      <LineGraphView
-        setTokenState={setTokenState}
-        tokenName={chainStore.current.feeCurrencies[0].coinGeckoId}
-        tokenDenom={chainStore.current.feeCurrencies[0].coinDenom}
+      <LineGraphOrNoData
+        chainName={current.chainName}
+        feeCurrencies={current.feeCurrencies}
+        isASIChain={isASIChain(current)}
         tokenState={tokenState}
+        setTokenState={setTokenState}
         priceInVsCurrency={priceInVsCurrency}
         vsCurrencySymbol={
           priceStore.supportedVsCurrencies[fiatCurrency]?.symbol || ""
         }
       />
-
-      <Dropdown
-        styleProp={{ height: "595px", maxHeight: "595px" }}
-        setIsOpen={setIsSelectNetOpen}
+      <ChainNetworkDropdown
         isOpen={isSelectNetOpen}
-        title="Change Network"
-        closeClicked={() => setIsSelectNetOpen(false)}
-      >
-        <ChainList setIsSelectNetOpen={setIsSelectNetOpen} />
-      </Dropdown>
-      <Dropdown
+        setIsOpen={setIsSelectNetOpen}
+      />
+      <WalletDropdown
         isOpen={isSelectWalletOpen}
         setIsOpen={setIsSelectWalletOpen}
-        title="Change Wallet"
-        closeClicked={() => {
-          setIsSelectWalletOpen(false);
-          analyticsStore.logEvent("change_wallet_click", {
-            pageName: "Home",
-          });
-        }}
-      >
-        <SetKeyRingPage
-          onItemSelect={() => setIsSelectWalletOpen(false)}
-          setIsSelectWalletOpen={setIsSelectWalletOpen}
-          setIsOptionsOpen={setIsOptionsOpen}
-        />
-        <ButtonV2
-          text="Add New Wallet"
-          styleProps={{
-            height: "56px",
-            background: "white",
-            fontSize: "14px",
-            paddingBottom: "14px",
-            paddingTop: "14px",
-          }}
-          onClick={(e: any) => {
-            e.preventDefault();
-            analyticsStore.logEvent("add_new_wallet_click", {
-              pageName: "Home",
-            });
-            setIsSelectWalletOpen(false);
-            browser.tabs.create({
-              url: "/popup.html#/register",
-            });
-          }}
-        />
-      </Dropdown>
-      <Dropdown
-        setIsOpen={setIsOptionsOpen}
-        isOpen={isOptionsOpen}
-        title={"Manage Wallet"}
-        closeClicked={() => setIsOptionsOpen(false)}
-      >
-        <WalletOptions />
-      </Dropdown>
+        onItemSelect={() => setIsSelectWalletOpen(false)}
+        setIsOptionsOpen={setIsOptionsOpen}
+        onAnalyticsEvent={analyticsStore.logEvent.bind(analyticsStore)}
+      />
+      <OptionsDropdown isOpen={isOptionsOpen} setIsOpen={setIsOptionsOpen} />
     </HeaderLayout>
   );
 });

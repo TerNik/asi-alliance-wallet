@@ -14,7 +14,7 @@ interface Props {
   disabled?: boolean;
   value: string | number | undefined;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onBeforeInput?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBeforeInput?: React.FormEventHandler<HTMLInputElement>;
   inputContainerClassName?: string;
   inputClassname?: string;
   placeholder?: string;
