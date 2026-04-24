@@ -712,8 +712,7 @@ export class RootStore {
       const selectedKeyStore = this.keyRingStore.multiKeyStoreInfo.find(
         (ks) => ks.selected
       );
-      const asiChainAddress =
-        selectedKeyStore?.meta?.["asiChainAddress"] || "";
+      const asiChainAddress = selectedKeyStore?.meta?.["asiChainAddress"] || "";
 
       if (!asiChainAddress) {
         this.asiBalanceStore.stop();

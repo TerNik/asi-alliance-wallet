@@ -99,8 +99,7 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     denom: (value) =>
       updateCurrencyFields("coinMinimalDenom", value.trim().toLowerCase()),
 
-    symbol: (value) =>
-      updateCurrencyFields("coinDenom", value.trim()),
+    symbol: (value) => updateCurrencyFields("coinDenom", value.trim()),
 
     decimal: (value) => {
       const cleaned = cleanDecimalInput(value);
@@ -131,7 +130,8 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     url: string,
     label: string
   ): Promise<EndpointCheckResult> => {
-    if (!isUrlValid(url)) return { valid: false, reason: `${label} URL is invalid` };
+    if (!isUrlValid(url))
+      return { valid: false, reason: `${label} URL is invalid` };
 
     try {
       const res = await axios.get(url.replace(/\/$/, ""), { timeout: 4000 });
@@ -140,7 +140,10 @@ export const AddASIChainNetwork: FunctionComponent = () => {
       }
       return { valid: true };
     } catch {
-      return { valid: false, reason: `${label} endpoint unreachable or request failed` };
+      return {
+        valid: false,
+        reason: `${label} endpoint unreachable or request failed`,
+      };
     }
   };
 
@@ -210,9 +213,7 @@ export const AddASIChainNetwork: FunctionComponent = () => {
     newChainInfo.stakeCurrency.coinDecimals <= 18;
   const denom = newChainInfo.stakeCurrency.coinMinimalDenom.trim();
   const symbol = newChainInfo.stakeCurrency.coinDenom.trim();
-  const isValidDenom = /^([A-Za-z]{2,10}|ibc\/[A-Fa-f0-9]{32,64})$/.test(
-    denom
-  );
+  const isValidDenom = /^([A-Za-z]{2,10}|ibc\/[A-Fa-f0-9]{32,64})$/.test(denom);
   const isValidSymbol = /^([a-zA-Z0-9]{2,10}|ibc\/[A-Fa-f0-9]{32,64})$/.test(
     symbol
   );
@@ -334,9 +335,7 @@ export const AddASIChainNetwork: FunctionComponent = () => {
           placeholder="TESTASI"
           value={newChainInfo.stakeCurrency.coinDenom}
           error={
-            !isValidSymbol && symbol !== ""
-              ? "Please enter a valid symbol"
-              : ""
+            !isValidSymbol && symbol !== "" ? "Please enter a valid symbol" : ""
           }
           onChange={handleChange}
           formGroupClassName={style["formGroup"]}

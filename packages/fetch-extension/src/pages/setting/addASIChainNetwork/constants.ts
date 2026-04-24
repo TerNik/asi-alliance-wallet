@@ -21,14 +21,12 @@ export const INITIAL_ASI_CHAIN_CONFIG: ChainInfo = {
     coinDenom: "TESTASI",
     coinMinimalDenom: "atestasi",
     coinDecimals: 18,
-
   },
   currencies: [
     {
       coinDenom: "TESTASI",
       coinMinimalDenom: "atestasi",
       coinDecimals: 18,
-  
     },
   ],
   feeCurrencies: [
@@ -36,7 +34,7 @@ export const INITIAL_ASI_CHAIN_CONFIG: ChainInfo = {
       coinDenom: "TESTASI",
       coinMinimalDenom: "atestasi",
       coinDecimals: 18,
-  
+
       gasPriceStep: {
         low: 0,
         average: 5000000000,

@@ -63,7 +63,9 @@ export const getTxInputsValueAndAddress = async () => ({
   inputAddresses: [],
 });
 
-export const parseAssetId = (assetId: string): {
+export const parseAssetId = (
+  assetId: string
+): {
   policyId: string;
   assetName: string;
 } => ({

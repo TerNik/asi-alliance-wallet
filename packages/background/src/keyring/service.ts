@@ -593,10 +593,7 @@ export class KeyRingService {
           }
         }
       } catch (e) {
-        console.error(
-          "[KeyRingService] ASI Chain address backfill failed:",
-          e
-        );
+        console.error("[KeyRingService] ASI Chain address backfill failed:", e);
       }
     })();
   }

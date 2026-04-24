@@ -89,7 +89,7 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
   const currency = current.feeCurrencies?.[0];
   const zero = currency
     ? new CoinPretty(currency, new Int(0)).ready(false)
-   : undefined;
+    : undefined;
 
   const emptyBalance = () =>
     zero ??

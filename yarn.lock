@@ -282,6 +282,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@asichain/asi-wallet-sdk@npm:^0.1.6":
+  version: 0.1.6
+  resolution: "@asichain/asi-wallet-sdk@npm:0.1.6"
+  dependencies:
+    "@noble/hashes": ^1.6.0
+    "@noble/secp256k1": ^1.7.0
+    axios: ^1.13.2
+    bip32: ^4.0.0
+    bip39: ^3.1.0
+    blakejs: ^1.2.1
+    bs58: ^6.0.0
+    buffer: ^6.0.3
+    js-sha3: ^0.9.3
+  checksum: f80c3746b81607cf79932a643d4ae7dd48fcf69a51beccadc05359714b4e6109ae821717cba83c11ce5fc4d22477faa0db8fc6bf3e2c6882753ffd3a4d053b2b
+  languageName: node
+  linkType: hard
+
 "@aw-web-design/x-default-browser@npm:1.4.126":
   version: 1.4.126
   resolution: "@aw-web-design/x-default-browser@npm:1.4.126"
@@ -13470,6 +13487,7 @@ __metadata:
   resolution: "@keplr-wallet/background@workspace:packages/background"
   dependencies:
     "@apollo/client": ^3.6.9
+    "@cardano-sdk/key-management": 0.29.10
     "@cosmjs/encoding": ^0.38.1
     "@ethereumjs/common": ^2.6.5
     "@ethereumjs/tx": ^3.5.2
@@ -13560,7 +13578,9 @@ __metadata:
     fuse.js: ^7.1.0
     lodash: ^4.17.21
     rxjs: ^7.8.2
+    ts-log: ^2.2.7
     typescript: ^4.9.5
+    webextension-polyfill: ^0.10.0
   languageName: unknown
   linkType: soft
 
@@ -24928,8 +24948,8 @@ __metadata:
 
 "alt-sign-in@file:./noop-alt-sign-in::locator=%40keplr-wallet%2Ffetch-extension%40workspace%3Apackages%2Ffetch-extension":
   version: 0.0.1
-  resolution: "alt-sign-in@file:./noop-alt-sign-in#./noop-alt-sign-in::hash=953634&locator=%40keplr-wallet%2Ffetch-extension%40workspace%3Apackages%2Ffetch-extension"
-  checksum: 638e50d9dcb5a0d66d32d7603f0f688072083e3f01a88ad6273861fe435e76970eb6bf8bdcd7c5bd8a71fbfbaf04813e70a5711624c147baa3477e364d3bae54
+  resolution: "alt-sign-in@file:./noop-alt-sign-in#./noop-alt-sign-in::hash=ebe0ba&locator=%40keplr-wallet%2Ffetch-extension%40workspace%3Apackages%2Ffetch-extension"
+  checksum: ee829bc78fdeed53012a8b4a397e8fd93226368f2aa058a7a1936e85c4c6c6dcc81bc57bad422684bf3813b4a4feefb32a531105a316b768cec962d208998a1b
   languageName: node
   linkType: hard
 
@@ -35268,13 +35288,13 @@ __metadata:
 
 "expo-standard-web-crypto@file:./crypto-polyfill::locator=mobile%40workspace%3Apackages%2Fmobile":
   version: 0.0.1
-  resolution: "expo-standard-web-crypto@file:./crypto-polyfill#./crypto-polyfill::hash=708807&locator=mobile%40workspace%3Apackages%2Fmobile"
+  resolution: "expo-standard-web-crypto@file:./crypto-polyfill#./crypto-polyfill::hash=5bb77e&locator=mobile%40workspace%3Apackages%2Fmobile"
   dependencies:
     browserify-cipher: ^1.0.1
     create-hash: ^1.2.0
     create-hmac: ^1.1.7
     expo-crypto: ~13.0.2
-  checksum: e0e4b9ddd7e669fd05d170ecb3f74bbe5fe6cb6ccd227ba13817112670b6c91a0c9c0c625a2eb3adad5649237be9b1ae9f5081fafeb923fe7a151d9140371e09
+  checksum: d6c76c93ecee3c69adf28b654cf39b84e26473278853795d95bf6b2cd87206791a6a00c3f3b1427aaf1e316215a9f0fdbff15706f321f867722b792cd3add213
   languageName: node
   linkType: hard
 
@@ -43352,8 +43372,8 @@ __metadata:
 
 "libsodium-wrappers@file:./etc/noop::locator=fetch-wallet%40workspace%3A.":
   version: 0.0.1
-  resolution: "libsodium-wrappers@file:./etc/noop#./etc/noop::hash=85e171&locator=fetch-wallet%40workspace%3A."
-  checksum: 39becfccc91ce2ae27aec4f6a8c7ec18fdb46ec356968e542fba3925f73d2d169ff1bbdef1292cc038d85f05eda0d348c7d2366617d57e185bd394e44905880c
+  resolution: "libsodium-wrappers@file:./etc/noop#./etc/noop::hash=e4bfa9&locator=fetch-wallet%40workspace%3A."
+  checksum: 3574db90e4e6b9fd6000ee62fbdd689bb10f633c4101687c14daafed1547bfc7cb6281406a1ab08a04d6a65c892fa90cbae81a845d1ef5ac2a9d8fdb85c6fb8c
   languageName: node
   linkType: hard
 
@@ -47804,8 +47824,8 @@ __metadata:
 
 "node-sass@file:./etc/noop::locator=fetch-wallet%40workspace%3A.":
   version: 0.0.1
-  resolution: "node-sass@file:./etc/noop#./etc/noop::hash=14af66&locator=fetch-wallet%40workspace%3A."
-  checksum: e15c55ad220fca832788d2ab82a372632687caf8449d4094552b1a03623cc2173bbbdc1acdfdee7b3183f6151c7137eaa1f85915aebe811c851470de5013528f
+  resolution: "node-sass@file:./etc/noop#./etc/noop::hash=c1bba4&locator=fetch-wallet%40workspace%3A."
+  checksum: e7978bcb0d856c3cf883cc00f230c3324eb020123d829c326cefcf30616eae96c2e94472e4c16886bf1b34c3b7f7f07a95ad4081f93ce5b855851e2d9145a9bb
   languageName: node
   linkType: hard
 
@@ -62258,6 +62278,13 @@ __metadata:
     pvtsutils: ^1.3.5
     tslib: ^2.7.0
   checksum: 5f8d862991bf9b36bfec53a317ceec7de95010c6d16092d2ba62b988acdfca9adfd254ef388036e610c66d0aad506d3f344574f62e06501a8c72ef961c8996b2
+  languageName: node
+  linkType: hard
+
+"webextension-polyfill@npm:^0.10.0":
+  version: 0.10.0
+  resolution: "webextension-polyfill@npm:0.10.0"
+  checksum: 4a59036bda571360c2c0b2fb03fe1dc244f233946bcf9a6766f677956c40fd14d270aaa69cdba95e4ac521014afbe4008bfa5959d0ac39f91c990eb206587f91
   languageName: node
   linkType: hard
 

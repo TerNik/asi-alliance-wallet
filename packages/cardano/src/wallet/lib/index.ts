@@ -11,4 +11,3 @@ export {
   createObservableTransactionsByAddressesProvider,
 } from "./tx-history-loader";
 export { createSlotTimeCalc } from "@cardano-sdk/core";
-export { createSlotTimeCalc } from '@cardano-sdk/core';

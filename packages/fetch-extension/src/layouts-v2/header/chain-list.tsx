@@ -30,10 +30,8 @@ import { getFilteredChainValues } from "@utils/filters";
 import { NotificationOption } from "@components-v2/notification-option";
 import { NoResults } from "@components-v2/no-results";
 import { useLoadingIndicator } from "@components/loading-indicator";
-
-// Pre-require assets so users never see blank spaces while SVGs load.
-const checkIcon = require("@assets/svg/wireframe/check.svg");
-const closeIcon = require("@assets/svg/wireframe/closeImage.svg");
+import checkIcon from "@assets/svg/wireframe/check.svg";
+import closeIcon from "@assets/svg/wireframe/closeImage.svg";
 
 interface ChainListProps {
   showAddress?: boolean;
