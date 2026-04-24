@@ -3191,54 +3191,47 @@ const EmbedChainInfos: ChainInfoWithRepoUpdateOptions[] = [
     walletUrlForStaking: "https://browse-dorado.fetch.ai/validators",
     govUrl: "https://explore-dorado.fetch.ai/proposals/",
   },
-  // {
-  //   rpc: "https://rpc-eridanus-1.fetch.ai",
-  //   rest: "https://rest-eridanus-1.fetch.ai",
-  //   chainId: "eridanus-1",
-  //   chainName: "Eridanus Testnet",
-  //   hideInUI: true,
-  //   stakeCurrency: {
-  //     coinDenom: "TESTASI",
-  //     coinMinimalDenom: "atestasi",
-  //     coinDecimals: 18,
-  //     coinGeckoId: "fetch-ai",
-  //   },
-  //   type: "testnet",
-  //   bip44: {
-  //     coinType: 118,
-  //   },
-  //   bech32Config: Bech32Address.defaultBech32Config("asi"),
-  //   currencies: [
-  //     {
-  //       coinDenom: "TESTASI",
-  //       coinMinimalDenom: "atestasi",
-  //       coinDecimals: 18,
-  //       coinGeckoId: "fetch-ai",
-  //     },
-  //     {
-  //       coinDenom: "MOBX",
-  //       coinMinimalDenom: "nanomobx",
-  //       coinDecimals: 9,
-  //     },
-  //   ],
-  //   feeCurrencies: [
-  //     {
-  //       coinDenom: "TESTASI",
-  //       coinMinimalDenom: "atestasi",
-  //       coinDecimals: 18,
-  //       coinGeckoId: "fetch-ai",
-  //       gasPriceStep: {
-  //         low: 0,
-  //         average: 5000000000,
-  //         high: 6250000000,
-  //       },
-  //     },
-  //   ],
-  //   features: ["cosmwasm"],
-  //   chainSymbolImageUrl: require("./public/assets/png/Black-white-circle.png"),
-  //   walletUrlForStaking: "https://explore-eridanus-1.fetch.ai/validators",
-  //   govUrl: "https://explore-eridanus-1.fetch.ai/proposals/",
-  // },
+];
+
+const ASI_STAKE_CURRENCY = {
+  coinDenom: "ASI",
+  coinMinimalDenom: "uasi",
+  coinDecimals: 8,
+};
+
+export const ASIChainInfos: ChainInfo[] = [
+  // ASI Chain Devnet
+  {
+    rpc: "https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_0/HTTP_API",
+    rest: "https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_0/HTTP_API",
+    asi: {
+      validator:
+        "https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_0/HTTP_API",
+      observer:
+        "https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_0/HTTP_API",
+    },
+    chainId: "asi-devnet-1",
+    chainName: "ASI Chain Devnet",
+    stakeCurrency: ASI_STAKE_CURRENCY,
+    bip44: {
+      coinType: 60,
+    },
+    bech32Config: Bech32Address.defaultBech32Config("asi"),
+    type: "testnet",
+    currencies: [ASI_STAKE_CURRENCY],
+    feeCurrencies: [
+      {
+        ...ASI_STAKE_CURRENCY,
+        gasPriceStep: {
+          low: 0,
+          average: 5000000000,
+          high: 6250000000,
+        },
+      },
+    ],
+    features: ["asi-chain"],
+    chainSymbolImageUrl: require("./public/assets/png/Black-white-circle.png"),
+  },
 ];
 
 export const CardanoChainInfos: ChainInfo[] = [
@@ -3454,6 +3447,7 @@ if (true) {
   EmbedChainInfos.push(
     LOCAL_TEST_NETWORK_CONFIG,
     REMOTE_TEST_NETWORK_CONFIG,
+    ...ASIChainInfos,
     ...CardanoChainInfos
   );
 }

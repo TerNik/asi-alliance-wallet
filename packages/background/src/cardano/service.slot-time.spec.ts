@@ -91,6 +91,7 @@ describe("CardanoService slot → timestamp", () => {
   });
 
   it("unknown chainKey returns undefined and logs warn once per chainKey", () => {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     const spy = jest.spyOn(console, "warn").mockImplementation(() => {});
     expect(slotToMs(1, "cardano-fantasy")).toBeUndefined();
     expect(slotToMs(2, "cardano-fantasy")).toBeUndefined();

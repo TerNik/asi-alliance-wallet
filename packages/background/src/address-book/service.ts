@@ -1,7 +1,7 @@
-import { AddressBookEntry } from "@fetchai/wallet-types";
 import { KVStore } from "@keplr-wallet/common";
-import { ChainsService } from "src/chains";
-import { PermissionService } from "src/permission";
+import { AddressBookEntry } from "@fetchai/wallet-types";
+import { PermissionService } from "../permission";
+import { ChainsService } from "../chains";
 
 export class AddressBookService {
   protected addressBook: AddressBookEntry[] = [];

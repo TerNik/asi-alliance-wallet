@@ -1,0 +1,25 @@
+{
+  "name": "@keplr-wallet/asi-chain",
+  "version": "0.12.12",
+  "description": "ASI Chain integration for Keplr Wallet",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf node_modules; rm -rf build",
+    "dev": "tsc -w",
+    "test": "jest --passWithNoTests",
+    "lint-test": "eslint \"src/**/*\" && prettier --check \"src/**/*\"",
+    "lint-fix": "eslint --fix \"src/**/*\" && prettier --write \"src/**/*\""
+  },
+  "dependencies": {
+    "@asichain/asi-wallet-sdk": "^0.1.6",
+    "@keplr-wallet/types": "0.12.12"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.5"
+  }
+}

@@ -29,7 +29,7 @@ export interface NetworkConfig {
   /**
    * The network type
    */
-  readonly networkType: "cosmos" | "evm" | "cardano";
+  readonly networkType: "cosmos" | "evm" | "cardano" | "asi-chain";
 
   /**
    * The base RPC used for interacting with the network
