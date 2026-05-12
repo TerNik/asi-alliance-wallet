@@ -1677,10 +1677,14 @@ Salt: ${salt}`;
       }
     }
 
-    // For consistency check, use display address (matches cache format)
+    // For consistency check, compare using the exact cache representation.
     const activeKey = selectedIndex >= 0 ? keys[selectedIndex] : null;
     const activeAddressForCheck =
-      activeKey && selectedIndex >= 0 ? displayAddresses[selectedIndex] : "";
+      activeKey && selectedIndex >= 0
+        ? flags.isCardano
+          ? displayAddresses[selectedIndex]
+          : Buffer.from(activeKey.address).toString("hex")
+        : "";
 
     const consistencyResult =
       await this.keyRing.addressCacheManager.checkConsistency(
