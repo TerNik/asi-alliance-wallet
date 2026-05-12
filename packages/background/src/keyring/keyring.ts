@@ -36,6 +36,7 @@ import { KeystoneKeyringData } from "../keystone/cosmos-keyring";
 import { InteractionService } from "../interaction";
 import { AddressCacheManager } from "./cache-manager";
 import { isValidCardanoAddress } from "@keplr-wallet/cardano";
+import { ASI_CHAIN_ADDRESS_META_KEY } from "@keplr-wallet/asi-chain";
 
 export enum KeyRingStatus {
   NOTLOADED,
@@ -78,6 +79,7 @@ export class KeyRing {
     "cardano",
     "coinType",
     "__ledger__cosmos_app_like__",
+    ASI_CHAIN_ADDRESS_META_KEY,
     "email",
     "exportKeyRingDataDuplicationCheckKey",
   ]);
