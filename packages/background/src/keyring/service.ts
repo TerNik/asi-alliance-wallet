@@ -11,7 +11,10 @@ import {
   formatProviderUnavailableError,
   formatWalletNotReadyError,
 } from "../cardano/ensure-errors";
-import { ASIChainService } from "@keplr-wallet/asi-chain";
+import {
+  ASI_CHAIN_ADDRESS_META_KEY,
+  ASIChainService,
+} from "@keplr-wallet/asi-chain";
 
 import {
   Bech32Address,
@@ -551,51 +554,54 @@ export class KeyRingService {
       }
     }
 
-    this.backfillASIChainAddressesInBackground();
+    const asiMetaUpdatedCount = await this.ensureASIChainAddresses();
+    if (asiMetaUpdatedCount > 0) {
+      this.broadcastKeyringSurfacesSync();
+    }
 
     return this.keyRing.status;
   }
 
-  private backfillASIChainAddressesInBackground(): void {
-    void (async () => {
-      try {
-        const infos = this.keyRing.getMultiKeyStoreInfo();
-        for (let i = 0; i < infos.length; i++) {
-          const info = infos[i];
-          if (info.type !== "mnemonic") continue;
-          if (info.meta && info.meta["asiChainAddress"]) continue;
+  private async ensureASIChainAddresses(): Promise<number> {
+    let updatedCount = 0;
+    const infos = this.keyRing.getMultiKeyStoreInfo();
 
-          const mnemonic = await this.keyRing.decryptMnemonicAt(i);
-          if (!mnemonic) continue;
-
-          const addressIndex = info.bip44HDPath?.addressIndex ?? 0;
-          const meta = await this.asiChainService
-            .createMetaFromMnemonic(mnemonic, addressIndex)
-            .catch((error) => {
-              console.error(
-                "[KeyRingService] Failed to backfill ASI Chain meta:",
-                error
-              );
-              return {} as Record<string, string>;
-            });
-
-          if (meta["asiChainAddress"]) {
-            try {
-              await this.keyRing.updateKeyStoreMeta(i, {
-                asiChainAddress: meta["asiChainAddress"],
-              });
-            } catch (e) {
-              console.error(
-                "[KeyRingService] Failed to persist ASI Chain meta:",
-                e
-              );
-            }
-          }
-        }
-      } catch (e) {
-        console.error("[KeyRingService] ASI Chain address backfill failed:", e);
+    for (let i = 0; i < infos.length; i++) {
+      const info = infos[i];
+      if (info.type !== "mnemonic") {
+        continue;
       }
-    })();
+      if (info.meta?.[ASI_CHAIN_ADDRESS_META_KEY]) {
+        continue;
+      }
+
+      try {
+        const mnemonic = await this.keyRing.decryptMnemonicAt(i);
+        if (!mnemonic) {
+          continue;
+        }
+
+        const addressIndex = info.bip44HDPath?.addressIndex ?? 0;
+        const meta = await this.asiChainService.createMetaFromMnemonic(
+          mnemonic,
+          addressIndex
+        );
+
+        const asiChainAddress = meta[ASI_CHAIN_ADDRESS_META_KEY];
+        if (!asiChainAddress) {
+          continue;
+        }
+
+        await this.keyRing.updateKeyStoreMeta(i, {
+          [ASI_CHAIN_ADDRESS_META_KEY]: asiChainAddress,
+        });
+        updatedCount++;
+      } catch (e) {
+        console.error("[KeyRingService] Failed to ensure ASI Chain meta:", e);
+      }
+    }
+
+    return updatedCount;
   }
 
   async getKey(chainId: string): Promise<Key> {

@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import { ChainStore } from "./chain";
 import { CommunityChainInfoRepo, EmbedChainInfos } from "../config";
-import { KeyRingStatus } from "@keplr-wallet/background";
+import {
+  ChainInfoWithCoreTypes,
+  KEYRING_SURFACES_SYNC_MESSAGE_TYPE,
+  KeyRingStatus,
+} from "@keplr-wallet/background";
 import { setCacheManager } from "@keplr-wallet/common";
 import { addressCacheStore } from "../utils/address-cache-store";
 import {
@@ -67,7 +71,6 @@ import {
   InteractionAddon,
 } from "@keplr-wallet/router-extension";
 import { APP_PORT } from "@keplr-wallet/router";
-import { ChainInfoWithCoreTypes } from "@keplr-wallet/background";
 import { FiatCurrency } from "@keplr-wallet/types";
 import { UIConfigStore } from "./ui-config";
 import { FeeType } from "@keplr-wallet/hooks";
@@ -259,6 +262,36 @@ export class RootStore {
       this.chainStore,
       this.keyRingStore
     );
+
+    {
+      const runtime =
+        (globalThis as any).browser?.runtime ??
+        (globalThis as any).chrome?.runtime;
+      if (runtime?.onMessage?.addListener) {
+        const onKeyringSurfaceSync = (message: unknown) => {
+          const m = message as { type?: string };
+          if (m?.type === KEYRING_SURFACES_SYNC_MESSAGE_TYPE) {
+            void flowResult(this.keyRingStore.refreshMultiKeyStoreInfo()).catch(
+              (e) => {
+                console.error(
+                  "[RootStore] Failed to refresh keyring surfaces after sync broadcast:",
+                  e
+                );
+              }
+            );
+          }
+        };
+
+        runtime.onMessage.addListener(onKeyringSurfaceSync);
+        this._disposers.push(() => {
+          try {
+            runtime.onMessage.removeListener(onKeyringSurfaceSync);
+          } catch {
+            // noop
+          }
+        });
+      }
+    }
 
     this.ibcChannelStore = new IBCChannelStore(
       new ExtensionKVStore("store_ibc_channel")
