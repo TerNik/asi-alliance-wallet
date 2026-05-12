@@ -8,6 +8,7 @@ import {
 } from "@keplr-wallet/chain-validator";
 import { simpleFetch } from "@keplr-wallet/simple-fetch";
 import { isCardanoChainId } from "@keplr-wallet/cardano";
+import { ASI_CHAIN_FEATURE, isASIChain } from "@keplr-wallet/asi-chain";
 
 export class ChainUpdaterService {
   public chainsService!: ChainsService;
@@ -141,18 +142,32 @@ export class ChainUpdaterService {
   }
 
   async tryUpdateChainInfo(chainId: string): Promise<boolean> {
-    if (
-      (await this.chainsService.getChainInfo(chainId)).updateFromRepoDisabled
-    ) {
-      return false;
-    }
-
-    if (isCardanoChainId(chainId)) {
-      return false;
-    }
-
     try {
+      const chainInfo = await this.chainsService.getChainInfo(chainId);
       const chainIdentifier = ChainIdHelper.parse(chainId).identifier;
+
+      const isASIChainLike =
+        isASIChain(chainInfo) ||
+        (chainInfo.features?.includes(ASI_CHAIN_FEATURE) ?? false);
+
+      if (isASIChainLike) {
+        const staleUpdatedChainInfo = await this.kvStore.get<ChainInfo>(
+          "updated-chain-info/" + chainIdentifier
+        );
+        if (staleUpdatedChainInfo) {
+          await this.kvStore.set("updated-chain-info/" + chainIdentifier, null);
+          this.chainsService.clearCachedChainInfos();
+        }
+        return false;
+      }
+
+      if (chainInfo.updateFromRepoDisabled) {
+        return false;
+      }
+
+      if (isCardanoChainId(chainId)) {
+        return false;
+      }
 
       let repoUpdated = false;
 
