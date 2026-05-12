@@ -82,7 +82,10 @@ import { AddressCacheById } from "../utils/address-cache-store";
 import { AddressCacheSyncManager } from "./address-cache-sync-manager";
 import { getCardanoChainRepairFallbackIfStale } from "../utils/cardano-chain-repair";
 import { ASIBalanceStore } from "./asi-balance";
-import { isASIChain } from "@keplr-wallet/asi-chain";
+import {
+  ASI_CHAIN_ADDRESS_META_KEY,
+  isASIChain,
+} from "@keplr-wallet/asi-chain";
 
 export class RootStore {
   public readonly uiConfigStore: UIConfigStore;
@@ -745,7 +748,8 @@ export class RootStore {
       const selectedKeyStore = this.keyRingStore.multiKeyStoreInfo.find(
         (ks) => ks.selected
       );
-      const asiChainAddress = selectedKeyStore?.meta?.["asiChainAddress"] || "";
+      const asiChainAddress =
+        selectedKeyStore?.meta?.[ASI_CHAIN_ADDRESS_META_KEY] || "";
 
       if (!asiChainAddress) {
         this.asiBalanceStore.stop();

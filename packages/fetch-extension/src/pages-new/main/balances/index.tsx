@@ -17,7 +17,10 @@ import {
 } from "@utils/moonpay-currency";
 import { moonpaySupportedTokensByChainId } from "../../more/token/moonpay/utils";
 import { addressCacheStore } from "../../../utils/address-cache-store";
-import { isASIChain as isASIChainPredicate } from "@keplr-wallet/asi-chain";
+import {
+  ASI_CHAIN_ADDRESS_META_KEY,
+  isASIChain as isASIChainPredicate,
+} from "@keplr-wallet/asi-chain";
 import { BalanceFieldEvm } from "./balance-field-evm";
 import { BalanceFieldDefault } from "./balance-field-default";
 
@@ -61,7 +64,7 @@ export const Balances: React.FC<Props> = observer(({ tokenState }) => {
   const isASIChain = isASIChainPredicate(current);
 
   const asiChainAddress =
-    (isASIChain && selectedKeyStore?.meta?.["asiChainAddress"]) || "";
+    (isASIChain && selectedKeyStore?.meta?.[ASI_CHAIN_ADDRESS_META_KEY]) || "";
 
   const loadedAddress =
     accountInfo.walletStatus === WalletStatus.Loaded

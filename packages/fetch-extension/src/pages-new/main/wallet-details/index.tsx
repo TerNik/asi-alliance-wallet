@@ -4,7 +4,10 @@ import { ToolTip } from "@components/tooltip";
 import { WalletError } from "@keplr-wallet/router";
 import { WalletStatus } from "@keplr-wallet/stores";
 import { WalletConfig } from "@keplr-wallet/stores/build/chat/user-details";
-import { isASIChain as isASIChainPredicate } from "@keplr-wallet/asi-chain";
+import {
+  ASI_CHAIN_ADDRESS_META_KEY,
+  isASIChain as isASIChainPredicate,
+} from "@keplr-wallet/asi-chain";
 import {
   formatAddress,
   separateNumericAndDenom,
@@ -136,7 +139,8 @@ export const WalletDetailsView = observer(
     );
 
     const asiChainAddress =
-      (isASIChain && selectedKeyStore?.meta?.["asiChainAddress"]) || "";
+      (isASIChain && selectedKeyStore?.meta?.[ASI_CHAIN_ADDRESS_META_KEY]) ||
+      "";
 
     const displayAccountName = (() => {
       const meta = selectedKeyStore?.meta;
