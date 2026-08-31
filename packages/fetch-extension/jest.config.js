@@ -36,6 +36,7 @@ module.exports = {
     "/src/components-v2/form/coin-input.flow.test.tsx$",
     "/src/pages-new/keyring-dev/set-key-ring-page.test.tsx$",
     "/src/components-v2/transx-status/index.tracking.test.tsx$",
+    "/src/pages-new/register/mnemonic/recover-mnemonic.ui.test.tsx$",
   ],
   testMatch: ["**/src/**/?(*.)+(spec|test).[jt]s?(x)"],
 };

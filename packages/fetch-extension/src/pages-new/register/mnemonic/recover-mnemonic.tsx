@@ -12,7 +12,6 @@ import { observer } from "mobx-react-lite";
 import { RegisterConfig } from "@keplr-wallet/hooks";
 import { AdvancedBIP44Option, useBIP44Option } from "../advanced-bip44";
 
-import { Buffer } from "buffer/";
 import { useStore } from "../../../stores";
 import classnames from "classnames";
 import { ButtonV2 } from "@components-v2/buttons/button";
@@ -35,6 +34,14 @@ import { BACKGROUND_PORT } from "@keplr-wallet/router";
 import { RefreshAccountList } from "@keplr-wallet/background";
 import { PasswordStrengthMeter } from "@components-v2/password-strength/password-strength-meter";
 import { Checkbox } from "@components-v2/checkbox/checkbox";
+import {
+  applyRecoveryPaste,
+  createEmptyRecoveryFields,
+  PRIVATE_KEY_INPUT_MAX_LENGTH,
+  RecoverySeedType,
+  submitRecoverySeed,
+  validateRecoverySeed,
+} from "./recover-mnemonic-logic";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const bip39 = require("bip39");
@@ -42,35 +49,6 @@ const bip39 = require("bip39");
 const enum AccountSetupType {
   MIGRATE_ETH = "migrate-eth",
   CONNECT_HARDWARE = "connect-hardware",
-}
-
-export function isPrivateKey(str: string): boolean {
-  if (str.startsWith("0x")) {
-    return true;
-  }
-
-  if (str.length === 64) {
-    try {
-      return Buffer.from(str, "hex").length === 32;
-    } catch {
-      return false;
-    }
-  }
-  return false;
-}
-
-function validatePrivateKey(value: string): boolean {
-  if (isPrivateKey(value)) {
-    value = value.replace("0x", "");
-    if (value.length !== 64) {
-      return false;
-    }
-    return (
-      Buffer.from(value, "hex").toString("hex").toLowerCase() ===
-      value.toLowerCase()
-    );
-  }
-  return false;
 }
 
 interface FormData {
@@ -113,11 +91,6 @@ export const RecoverMnemonicIntro: FunctionComponent<{
   );
 });
 
-enum SeedType {
-  WORDS12 = "12words",
-  WORDS24 = "24words",
-  PRIVATE_KEY = "private_key",
-}
 export const RecoverMnemonicMainPage: FunctionComponent<{
   registerConfig: RegisterConfig;
   setSelectedCard: any;
@@ -254,90 +227,25 @@ export const RecoverMnemonicPage: FunctionComponent<{
 
   const [shownMnemonicIndex, setShownMnemonicIndex] = useState(-1);
 
-  const [seedType, _setSeedType] = useState(SeedType.WORDS12);
+  const tabs = [
+    { id: NewMnemonicStep.WORDS12 },
+    { id: NewMnemonicStep.WORDS24 },
+    { id: NewMnemonicStep.PRIVATEKEY },
+  ];
+  const [activeTab, setActiveTab] = useState(tabs[0].id);
+  const seedType =
+    activeTab === NewMnemonicStep.WORDS24
+      ? RecoverySeedType.WORDS24
+      : activeTab === NewMnemonicStep.PRIVATEKEY
+      ? RecoverySeedType.PRIVATE_KEY
+      : RecoverySeedType.WORDS12;
   const [seedWords, setSeedWords] = useState<string[]>(
-    new Array<string>(12).fill("")
+    createEmptyRecoveryFields(RecoverySeedType.WORDS12)
   );
 
-  const setSeedType = (seedType: SeedType) => {
-    _setSeedType(seedType);
-    setShownMnemonicIndex(-1);
-
-    if (seedType === SeedType.WORDS12) {
-      setSeedWords((seedWords) => {
-        if (seedWords.length < 12) {
-          return seedWords.concat(new Array(12 - seedWords.length).fill(""));
-        } else {
-          return seedWords.slice(0, 12);
-        }
-      });
-    }
-    if (seedType === SeedType.WORDS24) {
-      setSeedWords((seedWords) => {
-        if (seedWords.length < 24) {
-          return seedWords.concat(new Array(24 - seedWords.length).fill(""));
-        } else {
-          return seedWords.slice(0, 24);
-        }
-      });
-    }
-    if (seedType === SeedType.PRIVATE_KEY) {
-      setSeedWords((seedWords) => seedWords.slice(0, 1));
-    }
-  };
-
   const handlePaste = (index: number, value: string) => {
-    const words = value
-      .trim()
-      .split(" ")
-      .map((word) => word.trim());
-
-    if (words.length === 1) {
-      // If the length of pasted words is 1 and the word is guessed as a private key,
-      // set seed type as private key automatically.
-      if (isPrivateKey(words[0])) {
-        setSeedType(SeedType.PRIVATE_KEY);
-        setSeedWords([words[0]]);
-        setActiveTab(NewMnemonicStep.PRIVATEKEY);
-        return;
-      }
-    }
-
-    if (words.length === 12 || words.length === 24) {
-      // 12/24 words are treated specially.
-      // Regardless of where it is pasted from, if it is a valid seed, it will be processed directly.
-      if (bip39.validateMnemonic(words.join(" "))) {
-        setSeedType(words.length === 12 ? SeedType.WORDS12 : SeedType.WORDS24);
-        setSeedWords(words);
-        setActiveTab(
-          words.length === 12
-            ? NewMnemonicStep.WORDS12
-            : NewMnemonicStep.WORDS24
-        );
-        return;
-      }
-    }
-
-    let newSeedWords = seedWords.slice();
-    const expectedLength = Math.min(index + words.length, 24);
-
-    if (seedWords.length < expectedLength) {
-      newSeedWords = newSeedWords.concat(
-        new Array(expectedLength - seedWords.length).fill("")
-      );
-
-      if (expectedLength > 12) {
-        setSeedType(SeedType.WORDS24);
-      } else {
-        setSeedType(SeedType.WORDS12);
-      }
-    }
-
-    for (let i = index; i < expectedLength; i++) {
-      newSeedWords[i] = words[i - index];
-    }
-
-    setSeedWords(newSeedWords);
+    setSeedWords(applyRecoveryPaste(seedType, seedWords, index, value));
+    setSeedWordsError(undefined);
   };
 
   const [seedWordsError, setSeedWordsError] = useState<string | undefined>(
@@ -345,72 +253,29 @@ export const RecoverMnemonicPage: FunctionComponent<{
   );
 
   const validateSeedWords = (seedWords: string[]) => {
-    seedWords = seedWords.map((word) => word.trim());
-    if (seedWords.join(" ").trim().length === 0) {
-      return "__required__";
+    const error = validateRecoverySeed(
+      seedType,
+      seedWords,
+      bip39.validateMnemonic
+    );
+    if (error === "__too_short__") {
+      return intl.formatMessage({
+        id: "register.create.textarea.mnemonic.error.too-short",
+      });
     }
-    if (seedWords.length === 1 && isPrivateKey(seedWords[0])) {
-      if (!validatePrivateKey(seedWords[0])) {
-        return "__invalid__";
-      }
-      return undefined;
-    } else {
-      // num words is the length to the last non-empty word.
-      let numWords = 0;
-      for (let i = 0; i < seedWords.length; i++) {
-        if (seedWords[i].length > 0) {
-          numWords = i + 1;
-        }
-      }
-
-      seedWords = seedWords.slice(0, numWords);
-      // If an empty word exists in the middle of words, it is treated as an error.
-      if (seedWords.find((word) => word.length === 0)) {
-        return "__invalid__";
-      }
-
-      if (numWords < 9) {
-        return intl.formatMessage({
-          id: "register.create.textarea.mnemonic.error.too-short",
-        });
-      }
-
-      if (!bip39.validateMnemonic(seedWords.join(" "))) {
-        return "__invalid__";
-      }
-
-      return undefined;
-    }
+    return error;
   };
-  const tabs = [
-    { id: NewMnemonicStep.WORDS12 },
-    { id: NewMnemonicStep.WORDS24 },
-    { id: NewMnemonicStep.PRIVATEKEY },
-  ];
-  const [activeTab, setActiveTab] = useState(tabs[0].id);
   const [selectedCard, setSelectedCard] = useState("main");
 
-  useEffect(() => {
-    const handleTabChange = (activeTab: any) => {
-      if (activeTab === NewMnemonicStep.WORDS12) {
-        setSeedType(SeedType.WORDS12);
-      } else if (activeTab === NewMnemonicStep.WORDS24) {
-        setSeedType(SeedType.WORDS24);
-      } else if (activeTab === NewMnemonicStep.PRIVATEKEY) {
-        setSeedType(SeedType.PRIVATE_KEY);
-      }
-    };
-
-    handleTabChange(activeTab);
-  }, [activeTab]);
-
   const handleTabsClick = (activeTab: any) => {
+    setShownMnemonicIndex(-1);
+    setSeedWordsError(undefined);
     if (activeTab === NewMnemonicStep.WORDS12) {
-      setSeedWords(new Array<string>(12).fill(""));
+      setSeedWords(createEmptyRecoveryFields(RecoverySeedType.WORDS12));
     } else if (activeTab === NewMnemonicStep.WORDS24) {
-      setSeedWords(new Array<string>(24).fill(""));
+      setSeedWords(createEmptyRecoveryFields(RecoverySeedType.WORDS24));
     } else if (activeTab === NewMnemonicStep.PRIVATEKEY) {
-      setSeedWords(new Array<string>(1).fill(""));
+      setSeedWords(createEmptyRecoveryFields(RecoverySeedType.PRIVATE_KEY));
     }
   };
 
@@ -479,50 +344,40 @@ export const RecoverMnemonicPage: FunctionComponent<{
 
                 handleSubmit(async (data: FormData) => {
                   try {
-                    let supportsCardano = false;
-                    if (seedWords.length === 1 && isPrivateKey(seedWords[0])) {
-                      const privateKey = Buffer.from(
-                        seedWords[0].replace("0x", ""),
-                        "hex"
+                    const accountType = await submitRecoverySeed({
+                      seedType,
+                      seedWords,
+                      createPrivateKey: async (privateKey) => {
+                        await registerConfig.createPrivateKey(
+                          data.name,
+                          privateKey,
+                          data.password,
+                          {},
+                          selectedNetworks
+                        );
+                      },
+                      createMnemonic: async (mnemonic) => {
+                        await registerConfig.createMnemonic(
+                          data.name,
+                          mnemonic,
+                          data.password,
+                          bip44Option.bip44HDPath,
+                          {},
+                          selectedNetworks,
+                          chainStore.chainInfos,
+                          accountStore
+                        );
+                      },
+                    });
+                    analyticsStore.setUserProperties({
+                      registerType: "seed",
+                      accountType,
+                    });
+                    const supportsCardano =
+                      accountType === "mnemonic" &&
+                      supportsCardanoFromMnemonicWordCount(
+                        seedWords.join(" ").trim().split(/\s+/).length
                       );
-                      await registerConfig.createPrivateKey(
-                        data.name,
-                        privateKey,
-                        data.password,
-                        {},
-                        selectedNetworks
-                      );
-                      analyticsStore.setUserProperties({
-                        registerType: "seed",
-                        accountType: "privateKey",
-                      });
-                    } else {
-                      await registerConfig.createMnemonic(
-                        data.name,
-                        // In logic, not 12/24 words can be handled.
-                        // However, seed words have only a length of 12/24 when mnemonic.
-                        // Since the rest has an empty string, additional spaces are created by the empty string after join.
-                        // Therefore, trim should be done last.
-                        seedWords.join(" ").trim(),
-                        data.password,
-                        bip44Option.bip44HDPath,
-                        {},
-                        selectedNetworks,
-                        chainStore.chainInfos,
-                        accountStore
-                      );
-                      analyticsStore.setUserProperties({
-                        registerType: "seed",
-                        accountType: "mnemonic",
-                      });
-                      const mnemonicWords = seedWords
-                        .join(" ")
-                        .trim()
-                        .split(/\s+/);
-                      supportsCardano = supportsCardanoFromMnemonicWordCount(
-                        mnemonicWords.length
-                      );
-                    }
                     // Add/import only: align chain before changeKeyRing so keystore-changed/getKey is not on Cardano.
                     if (registerConfig.mode !== "create") {
                       await ensureCompatibleChainForUpcomingWallet(chainStore, {
@@ -549,7 +404,7 @@ export const RecoverMnemonicPage: FunctionComponent<{
                   ...(activeTab === NewMnemonicStep.WORDS12
                     ? { gridTemplateColumns: "1fr 1fr 1fr" }
                     : {}),
-                  ...(seedType === SeedType.PRIVATE_KEY
+                  ...(seedType === RecoverySeedType.PRIVATE_KEY
                     ? {
                         marginLeft: "145px",
                         width: "390px",
@@ -561,11 +416,11 @@ export const RecoverMnemonicPage: FunctionComponent<{
                   styleRecoverMnemonic["mnemonicContainer"],
                   {
                     [styleRecoverMnemonic["privateKey"]]:
-                      seedType === SeedType.PRIVATE_KEY,
+                      seedType === RecoverySeedType.PRIVATE_KEY,
                   }
                 )}
               >
-                {seedType === SeedType.PRIVATE_KEY && (
+                {seedType === RecoverySeedType.PRIVATE_KEY && (
                   <Label className={style["label"]}>Private Key</Label>
                 )}
                 {seedWords.map((word, index) => {
@@ -581,10 +436,12 @@ export const RecoverMnemonicPage: FunctionComponent<{
                       >
                         <Input
                           maxLength={
-                            seedType === SeedType.PRIVATE_KEY ? 50 : 16
+                            seedType === RecoverySeedType.PRIVATE_KEY
+                              ? PRIVATE_KEY_INPUT_MAX_LENGTH
+                              : 16
                           }
                           style={
-                            seedType === SeedType.PRIVATE_KEY
+                            seedType === RecoverySeedType.PRIVATE_KEY
                               ? {
                                   width: "335px",
                                   height: "53px",
@@ -616,6 +473,7 @@ export const RecoverMnemonicPage: FunctionComponent<{
                             const newSeedWords = seedWords.slice();
                             newSeedWords[index] = e.target.value.trim();
                             setSeedWords(newSeedWords);
+                            setSeedWordsError(undefined);
                           }}
                           value={word}
                         />
@@ -646,7 +504,7 @@ export const RecoverMnemonicPage: FunctionComponent<{
                 <div className={styleRecoverMnemonic["alert"]}>
                   {(() => {
                     if (seedWordsError === "__required__") {
-                      if (seedType === SeedType.PRIVATE_KEY) {
+                      if (seedType === RecoverySeedType.PRIVATE_KEY) {
                         return intl.formatMessage({
                           id: "register.import.textarea.private-key.error.required",
                         });
@@ -658,7 +516,7 @@ export const RecoverMnemonicPage: FunctionComponent<{
                     }
 
                     if (seedWordsError === "__invalid__") {
-                      if (seedType === SeedType.PRIVATE_KEY) {
+                      if (seedType === RecoverySeedType.PRIVATE_KEY) {
                         return intl.formatMessage({
                           id: "register.import.textarea.private-key.error.invalid",
                         });
@@ -674,7 +532,7 @@ export const RecoverMnemonicPage: FunctionComponent<{
                 </div>
               ) : null}
               <div className={styleRecoverMnemonic["formInnerContainer"]}>
-                {seedType !== SeedType.PRIVATE_KEY && (
+                {seedType !== RecoverySeedType.PRIVATE_KEY && (
                   <ButtonV2
                     type="button"
                     styleProps={{
@@ -688,9 +546,9 @@ export const RecoverMnemonicPage: FunctionComponent<{
                     text="Clear All"
                     variant="dark"
                     onClick={() => {
-                      if (seedType === SeedType.WORDS12) {
+                      if (seedType === RecoverySeedType.WORDS12) {
                         setSeedWords(new Array<string>(12).fill(""));
-                      } else if (seedType == SeedType.WORDS24) {
+                      } else if (seedType == RecoverySeedType.WORDS24) {
                         setSeedWords(new Array<string>(24).fill(""));
                       }
                     }}
@@ -741,7 +599,7 @@ export const RecoverMnemonicPage: FunctionComponent<{
                 </div>
                 <SelectNetwork
                   className={classNames(
-                    seedType === SeedType.PRIVATE_KEY && "mt-[16px]"
+                    seedType === RecoverySeedType.PRIVATE_KEY && "mt-[16px]"
                   )}
                   selectedNetworks={selectedNetworks}
                   disabled={name === defaultAccountName}
