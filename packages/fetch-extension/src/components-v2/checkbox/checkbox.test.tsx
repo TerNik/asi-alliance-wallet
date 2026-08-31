@@ -1,4 +1,4 @@
-/** @jest-environment jsdom */
+/** @jest-environment <rootDir>/jest.jsdom.environment.cjs */
 
 import React from "react";
 import { act } from "react-dom/test-utils";
