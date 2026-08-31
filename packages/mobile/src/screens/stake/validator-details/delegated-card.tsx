@@ -296,8 +296,7 @@ export const DelegatedCard: FunctionComponent<{
         }}
         txnHash={txnHash}
         chainId={chainStore.current.chainId}
-        buttonText="Go to activity screen"
-        onHomeClick={() => navigation.navigate("ActivityTab", {})}
+        onHomeClick={() => navigation.navigate("Home", {})}
         onTryAgainClick={handleClaim}
       />
       <ClaimRewardsModal

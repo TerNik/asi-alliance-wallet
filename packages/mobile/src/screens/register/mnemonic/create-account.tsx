@@ -52,7 +52,6 @@ export const CreateAccountScreen: FunctionComponent = () => {
   const title = route.params.title ? route.params.title : "Create your wallet";
 
   const [showPassword, setShowPassword] = useState(false);
-  const [password, setPassword] = useState("");
   const [mode] = useState(registerConfig.mode);
   const [isCreating, setIsCreating] = useState(false);
   const isSubmittingRef = useRef(false);
@@ -67,12 +66,6 @@ export const CreateAccountScreen: FunctionComponent = () => {
     keyRingStore.multiKeyStoreInfo
   );
 
-  useEffect(() => {
-    setValue("mnemonic", mnemonic, {
-      shouldValidate: true,
-    });
-  }, [mnemonic]);
-
   const {
     control,
     handleSubmit,
@@ -84,6 +77,15 @@ export const CreateAccountScreen: FunctionComponent = () => {
   } = useForm<FormData>();
 
   const currentName = watch("name", defaultAccountName);
+  const password = watch("password", "");
+  const isNetworkSelectionRequired =
+    currentName !== defaultAccountName && selectedNetworks.length === 0;
+
+  useEffect(() => {
+    setValue("mnemonic", mnemonic, {
+      shouldValidate: true,
+    });
+  }, [mnemonic, setValue]);
 
   const submit = handleSubmit(async () => {
     if (isSubmittingRef.current) return;
@@ -266,7 +268,7 @@ export const CreateAccountScreen: FunctionComponent = () => {
         disabled={currentName === defaultAccountName}
         onMultiSelectChange={setSelectedNetworks}
       />
-      {currentName !== defaultAccountName && selectedNetworks.length === 0 && (
+      {isNetworkSelectionRequired && (
         <Text
           style={
             style.flatten([
@@ -292,8 +294,6 @@ export const CreateAccountScreen: FunctionComponent = () => {
               },
             }}
             render={({ field: { onChange, onBlur, value, ref } }) => {
-              setPassword(value);
-
               return (
                 <InputCardView
                   label="Password"
@@ -469,19 +469,20 @@ export const CreateAccountScreen: FunctionComponent = () => {
       ) : null}
       <Button
         containerStyle={
-          style.flatten([
-            "margin-y-18",
-            "background-color-dark",
-            "color-white",
-            "border-radius-32",
-          ]) as ViewStyle
+          [
+            style.flatten([
+              "margin-y-18",
+              "background-color-dark",
+              "color-white",
+              "border-radius-32",
+            ]),
+            { opacity: isNetworkSelectionRequired ? 0.8 : 1 },
+          ] as ViewStyle
         }
         textStyle={style.flatten(["color-white"]) as ViewStyle}
         text="Confirm"
         size="large"
-        disabled={
-          currentName !== defaultAccountName && selectedNetworks.length === 0
-        }
+        disabled={isNetworkSelectionRequired}
         loading={isCreating}
         onPress={() => {
           submit();

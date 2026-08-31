@@ -1,11 +1,21 @@
 import { IconButton } from "components/new/button/icon";
 import { XmarkIcon } from "components/new/icon/xmark";
 import React, { FunctionComponent } from "react";
-import { Dimensions, StyleSheet, Text, View, ViewStyle } from "react-native";
+import {
+  Dimensions,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle,
+} from "react-native";
 import Modal from "react-native-modal";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStyle } from "styles/index";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import Toast from "react-native-toast-message";
+import { toastConfig } from "utils/toast-config";
 
 export const CardModal: FunctionComponent<{
   isOpen: boolean;
@@ -27,6 +37,11 @@ export const CardModal: FunctionComponent<{
   titleStyle,
 }) => {
   const style = useStyle();
+  const insets = useSafeAreaInsets();
+  const isAndroid = Platform.OS === "android";
+  const bottomInset = isAndroid
+    ? (insets.bottom > 0 ? insets.bottom : 48) + 30
+    : 0;
   const windowHeight = Dimensions.get("window").height;
 
   return (
@@ -44,6 +59,15 @@ export const CardModal: FunctionComponent<{
       animationInTiming={500}
       animationOutTiming={500}
       backdropColor={style.get("color-dark").color}
+      // Android edge-to-edge: without this the sheet stays under the keyboard.
+      // KeyboardSpacerView is iOS-only; KeyboardAware needs enableOnAndroid.
+      avoidKeyboard={isAndroid}
+      {...(isAndroid
+        ? {
+            statusBarTranslucent: true,
+            deviceHeight: Dimensions.get("screen").height,
+          }
+        : {})}
     >
       <GestureHandlerRootView style={{ flex: 1, justifyContent: "flex-end" }}>
         <View
@@ -58,6 +82,7 @@ export const CardModal: FunctionComponent<{
             ]) as ViewStyle,
             {
               maxHeight: windowHeight - 24,
+              ...(isAndroid ? { paddingBottom: bottomInset } : {}),
             },
             cardStyle,
           ]}
@@ -77,7 +102,7 @@ export const CardModal: FunctionComponent<{
               {title ? (
                 <Text
                   style={
-                    [
+                    StyleSheet.flatten([
                       style.flatten([
                         "subtitle2",
                         "color-text-high",
@@ -85,7 +110,7 @@ export const CardModal: FunctionComponent<{
                         "flex-3",
                       ]),
                       titleStyle,
-                    ] as ViewStyle
+                    ]) as ViewStyle
                   }
                 >
                   {title}
@@ -115,18 +140,25 @@ export const CardModal: FunctionComponent<{
             </View>
           ) : null}
           <KeyboardAwareScrollView
+            enableOnAndroid
+            keyboardShouldPersistTaps="handled"
+            extraScrollHeight={isAndroid ? 24 : 0}
             style={StyleSheet.flatten([
               style.flatten(["padding-x-20", "margin-top-24"]) as ViewStyle,
               childrenContainerStyle,
             ])}
           >
             {children}
-            <View
-              style={style.flatten(["height-page-double-pad"]) as ViewStyle}
-            />
+            {!isAndroid ? (
+              <View
+                style={style.flatten(["height-page-double-pad"]) as ViewStyle}
+              />
+            ) : null}
           </KeyboardAwareScrollView>
         </View>
       </GestureHandlerRootView>
+      {/* Rendered inside the modal so toasts appear above the native modal layer */}
+      <Toast config={toastConfig} />
     </Modal>
   );
 };
